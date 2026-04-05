@@ -196,7 +196,12 @@ if "last_chart_count" not in st.session_state:
     st.session_state.last_chart_count = -1
 
 # Button Logic
-if start_btn: st.session_state.is_running = True
+if start_btn: 
+    # Reset everything for a fresh scan
+    st.session_state.audit_state = RoadAuditState()
+    st.session_state.last_chart_count = -1
+    st.session_state.is_running = True
+    
 if stop_btn: st.session_state.is_running = False
 
 audit = st.session_state.audit_state
