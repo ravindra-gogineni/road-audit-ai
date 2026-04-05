@@ -17,6 +17,38 @@ import sqlite3
 import json
 import database_handler as db
 
+class RoadAuditState:
+    def __init__(self):
+        self.processed_ids = set()
+        self.processed_centroids = []
+        self.detections = []
+        self.total_cost = 0
+        self.pothole_count = 0
+        self.severity_counts = {"MINOR": 0, "MODERATE": 0, "CRITICAL": 0}
+
+    def calculate_severity(self, box, frame_area):
+        x1, y1, x2, y2 = box
+        width, height = x2 - x1, y2 - y1
+        percent_area = ((width * height) / frame_area) * 100
+        
+        # --- FINAL "PERFECT DEMO" CALIBRATION (REDUCED COSTS) ---
+        # Adjusted to keep total repair bills around 15k-25k for the demo video.
+        base_cost = 200
+        if percent_area < 1.0: 
+            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
+        elif 1.0 <= percent_area < 5.0: 
+            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
+        else: 
+            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
+
+    def is_duplicate(self, box):
+        x1, y1, x2, y2 = box
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        for (old_cx, old_cy) in self.processed_centroids:
+            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 50:
+                return True, cx, cy
+        return False, cx, cy
+
 # Initialize Database
 db.init_db()
 
