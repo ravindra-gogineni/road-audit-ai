@@ -21,6 +21,11 @@ from folium.plugins import MarkerCluster, HeatMap, AntPath
 from streamlit_geolocation import streamlit_geolocation
 import database_handler as db
 
+# --- GLOBAL BRANDING & LINKS ---
+GITHUB_URL = "https://github.com/ravindra-gogineni"
+LINKEDIN_URL = "https://www.linkedin.com/in/ravindra-gogineni-034501212"
+PROJECT_TITLE = "Andhra Pradesh Road Safety"
+
 class RoadAuditState:
     def __init__(self):
         self.processed_ids = set()
@@ -77,6 +82,79 @@ if "map_lng" not in st.session_state:
 # ==========================================
 # ⚙️ CONFIGURATION & CSS
 # ==========================================
+st.set_page_config(page_title=PROJECT_TITLE, page_icon="🛣️", layout="wide")
+
+def apply_premium_style():
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        
+        * {{ font-family: 'Outfit', sans-serif !important; }}
+        
+        /* Sticky Top Bar */
+        .top-bar {{
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }}
+        
+        /* Glassmorphism Metric Cards */
+        [data-testid="stMetricValue"] {{
+            font-size: 2rem; color: #10b981; font-weight: 700;
+        }}
+        .metric-card {{
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; padding: 20px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }}
+        
+        /* Premium Footer */
+        .footer {{
+            position: relative; margin-top: 50px;
+            padding: 40px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent; color: #94a3b8;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap;
+        }}
+        .footer a {{ color: #10b981; text-decoration: none; margin-left: 15px; font-weight: 600; }}
+        .footer a:hover {{ text-decoration: underline; }}
+        
+        /* Mobile Overrides */
+        @media (max-width: 768px) {{
+            .top-bar {{ position: relative; padding: 5px 10px; }}
+            .footer {{ flex-direction: column; text-align: center; gap: 15px; }}
+        }}
+    </style>
+    
+    <div class="top-bar">
+        <div style="font-size: 1.2rem; font-weight: 700; color: #fff;">
+            🛣️ {PROJECT_TITLE}
+        </div>
+        <div style="font-size: 0.8rem; background: #10b981; color: #fff; padding: 4px 10px; border-radius: 20px; font-weight: 600;">
+             SECURE ACCESS
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_footer():
+    st.markdown(f"""
+    <div class="footer">
+        <div>© 2026 {PROJECT_TITLE}. All Rights Reserved.</div>
+        <div>
+            <a href="{GITHUB_URL}" target="_blank">🔗 GitHub</a>
+            <a href="{LINKEDIN_URL}" target="_blank">💼 LinkedIn</a>
+            <a href="mailto:contact@{PROJECT_TITLE.lower().replace(' ', '')}.in">📧 Contact Us</a>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 MODEL_PATH = "best.pt"
 DEFAULT_VIDEO = "demo.mp4"
 
@@ -115,46 +193,6 @@ AP_DISTRICTS = {
     "YSR Kadapa": "ce.kadapa@ap.gov.in"
 }
 
-st.set_page_config(page_title="Citizen Road Reporter", layout="wide", page_icon="🛣️", initial_sidebar_state="expanded")
-
-st.markdown("""
-<style>
-    .metric-card {
-        background-color: #1e1e2f;
-        padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #33334d;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        text-align: center;
-        margin-bottom: 24px;
-        transition: transform 0.2s;
-    }
-    .metric-card:hover { transform: translateY(-5px); }
-    .metric-title { font-size: 1rem; color: #a1a1aa; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-count { font-size: 3rem; color: #10b981; font-weight: 800; line-height: 1; }
-    .metric-cost { font-size: 3rem; color: #ef4444; font-weight: 800; line-height: 1; }
-    
-    /* Responsive Font Adjustments */
-    @media (max-width: 768px) {
-        .metric-count, .metric-cost { font-size: 2.2rem; }
-        .metric-card { padding: 16px; margin-bottom: 16px; }
-        .stMarkdown div p { font-size: 15px; }
-    }
-    
-    /* Touch Friendly Buttons */
-    .stButton > button {
-        width: 100%;
-        height: 3rem;
-        border-radius: 8px;
-        font-weight: 600;
-        margin-top: 10px;
-    }
-    
-    div.block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    header { visibility: visible; } 
-</style>
-""", unsafe_allow_html=True)
-
 # ==========================================
 # 🧠 CORE LOGIC & EMAIL
 # ==========================================
@@ -165,38 +203,6 @@ def load_model():
         st.error(f"❌ Model missing: {MODEL_PATH}")
         st.stop()
     return YOLO(MODEL_PATH)
-
-class RoadAuditState:
-    def __init__(self):
-        self.processed_ids = set()
-        self.processed_centroids = []
-        self.detections = []
-        self.total_cost = 0
-        self.pothole_count = 0
-        self.severity_counts = {"MINOR": 0, "MODERATE": 0, "CRITICAL": 0}
-
-    def calculate_severity(self, box, frame_area):
-        x1, y1, x2, y2 = box
-        width, height = x2 - x1, y2 - y1
-        percent_area = ((width * height) / frame_area) * 100
-        
-        # --- FINAL "PERFECT DEMO" CALIBRATION (REDUCED COSTS) ---
-        # Adjusted to keep total repair bills around 15k-25k for the demo video.
-        base_cost = 200
-        if percent_area < 1.0: 
-            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
-        elif 1.0 <= percent_area < 5.0: 
-            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
-        else: 
-            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
-
-    def is_duplicate(self, box):
-        x1, y1, x2, y2 = box
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        for (old_cx, old_cy) in self.processed_centroids:
-            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 50:
-                return True, cx, cy
-        return False, cx, cy
 
 def create_pdf(detections, total_cost, count, reporter_name, road_name):
     if not detections:
@@ -450,7 +456,7 @@ def render_citizen_view(audit):
         render_safety_hub_page()
         return
 
-    st.title("🛣️ Citizen Road Reporter Dashboard")
+    st.title(f"🛣️ {PROJECT_TITLE} Dashboard")
     st.caption("AI-Powered Road Audit & Automated Reporting System")
 
     # Tabs
@@ -510,13 +516,34 @@ def render_citizen_view(audit):
             st.dataframe(df_comp[["road", "priority", "status", "cost", "time"]].tail(5), use_container_width=True)
 
 def render_admin_view():
-    st.title("🏛️ Authority Portal")
-    st.success("Authorized: Government Management Mode")
+    apply_premium_style()
+    st.title(f"🏛️ {PROJECT_TITLE} - Authority Portal")
+    st.info("Authorized Personnel Only: Review, Route, and Manage Community Hazards.")
+    
+    col1, col2, col3 = st.columns(3)
+    all_complaints = db.get_all_complaints()
+    
+    total_potholes = sum(c[3] for c in all_complaints) if all_complaints else 0
+    total_budget = sum(c[4] for c in all_complaints) if all_complaints else 0
+    
+    with col1:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("📦 Total Reports", len(all_complaints) if all_complaints else 0)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("⚠️ Total Potholes", total_potholes)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("💰 Total Est. Budget", f"₹{total_budget:,}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.divider()
     
     tab_manage, tab_reports = st.tabs(["📋 Manage Complaints", "📊 Advanced Analytics"])
     
     with tab_manage:
-        all_complaints = db.get_all_complaints()
         if not all_complaints:
             st.info("No complaints have been submitted yet.")
         else:
@@ -612,15 +639,24 @@ def render_admin_view():
     
     with tab_reports:
         st.subheader("Administrative Reports")
-        all_comp = db.get_all_complaints()
-        if all_comp:
+        if all_complaints:
             # SAFETY SHIELD: 16 Columns Total
             col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at", "lat", "lng", "is_blackspot"]
-            padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_comp]
+            padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_complaints]
             df = pd.DataFrame(padded_comp, columns=col_names)
             st.dataframe(df, use_container_width=True)
             csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download Full Master Log (CSV)", data=csv, file_name="master_complaints.csv")
+            st.download_button(
+                label="📥 Download Master Audit Log (CSV)",
+                data=csv,
+                file_name="andhra_road_audit_master.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        else:
+            st.warning("No data available for reporting yet.")
+            
+    render_footer()
 
 def update_ui_elements(audit):
     # Metrics
