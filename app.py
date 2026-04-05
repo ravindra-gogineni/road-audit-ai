@@ -585,12 +585,12 @@ def render_admin_view():
                         is_current_black = bool(is_black)
                         if st.toggle("Mark as Accident Prone Blackspot", value=is_current_black, key=f"black_{c_id}"):
                             if not is_current_black:
-                                db.update_complaint(c_id, status, days, is_blackspot=1)
+                                db.update_complaint(c_id, status, start_days, is_blackspot=1)
                                 st.warning("Spot marked as Permanent Blackspot!")
                                 st.rerun()
                         else:
                             if is_current_black:
-                                db.update_complaint(c_id, status, days, is_blackspot=0)
+                                db.update_complaint(c_id, status, start_days, is_blackspot=0)
                                 st.rerun()
 
                     st.divider()
