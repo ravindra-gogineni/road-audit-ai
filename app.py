@@ -287,6 +287,11 @@ else:
     start_btn = stop_btn = submit_btn = False # placeholder buttons to avoid name errors
     video_path = None
 
+# --- MAIN NAVIGATION ---
+st.sidebar.divider()
+st.sidebar.title("📌 Navigation")
+page_nav = st.sidebar.radio("Go To", ["🏠 Dashboard", "🗺️ Safety Hub"], index=0)
+
 # Sidebar Role Switcher
 st.sidebar.divider()
 if st.session_state.admin_logged_in:
@@ -351,23 +356,85 @@ def render_login_page():
         password = st.text_input("Password", type="password")
         submit = st.form_submit_button("Login", use_container_width=True)
         
-        if submit:
-            if username == "admin" and password == "admin123":
-                st.session_state.admin_logged_in = True
-                st.session_state.show_login = False
-                st.success("Login Successful!")
-                st.rerun()
-            else:
-                st.error("Invalid Username or Password")
+        st.error("Invalid Username or Password")
+
+def render_safety_hub_page():
+    st.title("🗺️ 3D Community Safety Map")
+    st.info("Explore hazards, bypass dangerous roads, and see official accident-prone zones in real-time.")
+    
+    all_comp = db.get_all_complaints()
+    
+    # Layer Selection
+    map_style = st.radio("Map Style", ["🛰️ Satellite View", "🏙️ Professional Road View"], horizontal=True)
+    tile_set = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" if "Satellite" in map_style else "CartoDB dark_matter"
+    attr = "ESRI World Imagery" if "Satellite" in map_style else "CartoDB"
+
+    # Create Map (Centered on most recent point or AP)
+    m = folium.Map(location=[st.session_state.map_lat, st.session_state.map_lng], zoom_start=13, tiles=tile_set, attr=attr)
+    
+    # Add Markers
+    if all_comp:
+        for c in all_comp:
+            # SAFETY PADDING (16 Columns)
+            c_list = list(c)
+            while len(c_list) < 16: c_list.append(None)
+            cid, cname, rname, pcount, cost, status, days, time, details, rep_e, auth_e, priority, forw, lat, lng, is_black = c_list
+            
+            if lat and lng:
+                color = "red" if priority == "🚨 High" else "orange"
+                icon = "exclamation-triangle"
+                
+                if is_black:
+                    color = "black"
+                    icon = "skull"
+                    label = "🚨 ACCIDENT PRONE BLACKSPOT"
+                else:
+                    label = f"{priority} Hazard ({status})"
+                
+                # Popup - NO COST for citizens
+                html = f"""
+                    <div style="font-family: Arial;">
+                        <h4 style="color:{color};">{label}</h4>
+                        <b>📍 Road:</b> {rname}<br>
+                        <b>📅 Reported:</b> {time}<br>
+                        <b>🛠️ Status:</b> {status}
+                    </div>
+                """
+                folium.Marker(
+                    location=[lat, lng],
+                    popup=folium.Popup(html, max_width=300),
+                    icon=folium.Icon(color=color, icon=icon, prefix="fa"),
+                    tooltip=f"{rname} - {priority}"
+                ).add_to(m)
+
+    # Render Map
+    st_folium(m, width=900, height=500, use_container_width=True)
+    
+    # --- SAFE NAVIGATION PANEL ---
+    st.divider()
+    with st.expander("🚗 Safe Path Navigator (Beta)"):
+        st.markdown("Enter your destination to find any hazards along your route.")
+        nav_col1, nav_col2 = st.columns(2)
+        st_loc = nav_col1.text_input("From Location", value="Ongole")
+        end_loc = nav_col2.text_input("To Location", placeholder="e.g. Hyderabad")
+        if st.button("🗺️ Find Safest Path"):
+            st.warning(f"Navigating from {st_loc} to {end_loc}...")
+            st.info("Safety Check: Searching database for hazards on this path...")
+            # Mocked safety navigation for the demo
+            hazard_dist = np.random.randint(2, 6)
+            st.error(f"🚨 Navigation Alert: {hazard_dist} critical hazards found on your route! Drive carefully.")
 
 def render_citizen_view(audit):
+    if page_nav == "🗺️ Safety Hub":
+        render_safety_hub_page()
+        return
+
     st.title("🛣️ Citizen Road Reporter Dashboard")
     st.caption("AI-Powered Road Audit & Automated Reporting System")
 
     # Tabs
-    tab_live, tab_safety, tab_tracker, tab_analytics = st.tabs([
+    tab_live, tab_tracker, tab_analytics = st.tabs([
         "🔴 Live Inspection", 
-        "🗺️ Safety Hub",
         "🔍 Track Complaint",
         "📊 Analytics & Reports"
     ])
@@ -384,82 +451,18 @@ def render_citizen_view(audit):
             st.info("👈 Use the sidebar to select your video source and click **Start Scan** to begin.")
             update_ui_elements(audit)
 
-    with tab_safety:
-        st.subheader("🗺️ 3D Community Safety Map")
-        st.info("Explore hazards, bypass dangerous roads, and see official accident-prone zones in real-time.")
-        
-        all_comp = db.get_all_complaints()
-        
-        # Layer Selection
-        map_style = st.radio("Map Style", ["🛰️ Satellite View", "🏙️ Professional Road View"], horizontal=True)
-        tile_set = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" if "Satellite" in map_style else "CartoDB dark_matter"
-        attr = "ESRI World Imagery" if "Satellite" in map_style else "CartoDB"
-
-        # Create Map (Centered on most recent point or AP)
-        m = folium.Map(location=[st.session_state.map_lat, st.session_state.map_lng], zoom_start=13, tiles=tile_set, attr=attr)
-        
-        # Add Markers
-        if all_comp:
-            for c in all_comp:
-                # SAFETY PADDING
-                c_list = list(c)
-                while len(c_list) < 15: c_list.append(None)
-                cid, cname, rname, pcount, cost, status, days, time, details, rep_e, auth_e, priority, forw, lat, lng = c_list[0:15]
-                is_black = c_list[15] if len(c_list) > 15 else 0
-                
-                if lat and lng:
-                    color = "red" if priority == "🚨 High" else "orange"
-                    icon = "exclamation-triangle"
-                    
-                    if is_black:
-                        color = "black"
-                        icon = "skull"
-                        label = "🚨 ACCIDENT PRONE BLACKSPOT"
-                    else:
-                        label = f"{priority} Hazard ({status})"
-                    
-                    # Popup - NO COST for citizens
-                    html = f"""
-                        <div style="font-family: Arial;">
-                            <h4 style="color:{color};">{label}</h4>
-                            <b>📍 Road:</b> {rname}<br>
-                            <b>📅 Reported:</b> {time}<br>
-                            <b>🛠️ Status:</b> {status}
-                        </div>
-                    """
-                    folium.Marker(
-                        location=[lat, lng],
-                        popup=folium.Popup(html, max_width=300),
-                        icon=folium.Icon(color=color, icon=icon, prefix="fa"),
-                        tooltip=f"{rname} - {priority}"
-                    ).add_to(m)
-
-        # Render Map
-        st_folium(m, width=900, height=500, use_container_width=True)
-        
-        # --- SAFE NAVIGATION PANEL ---
-        st.divider()
-        with st.expander("🚗 Safe Path Navigator (Beta)"):
-            st.markdown("Enter your destination to find any hazards along your route.")
-            nav_col1, nav_col2 = st.columns(2)
-            st_loc = nav_col1.text_input("From Location", value="Ongole")
-            end_loc = nav_col2.text_input("To Location", placeholder="e.g. Hyderabad")
-            if st.button("🗺️ Find Safest Path"):
-                st.warning(f"Navigating from {st_loc} to {end_loc}...")
-                st.info("Safety Check: Searching database for hazards on this path...")
-                # Mocked safety navigation for the demo
-                hazard_dist = np.random.randint(2, 6)
-                st.error(f"🚨 Navigation Alert: {hazard_dist} critical hazards found on your route! Drive carefully.")
+    with tab_tracker:
+        st.subheader("🔍 Public Complaint Tracker")
         search_q = st.text_input("Search by Road Name or Your Name", placeholder="e.g. Main Street")
         if search_q:
             results = db.search_complaints(search_q)
             if results:
                 for res in results:
-                    # SAFETY PADDING
+                    # SAFETY PADDING (16 Columns)
                     res_list = list(res)
-                    while len(res_list) < 13: res_list.append(None)
+                    while len(res_list) < 16: res_list.append(None)
                     
-                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority, forw_at = res_list
+                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority, forw_at, lat, lng, is_black = res_list
                     with st.expander(f"📌 {r_name} ({priority}) - {tstamp}"):
                         col_a, col_b = st.columns(2)
                         col_a.metric("Status", status)
@@ -476,8 +479,8 @@ def render_citizen_view(audit):
         st.subheader("Aggregated Data & Reporting")
         all_comp = db.get_all_complaints()
         if all_comp:
-            # SAFETY SHIELD: Handle missing columns dynamically
-            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at"]
+            # SAFETY SHIELD: Handle missing columns dynamically (16 Columns Total)
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at", "lat", "lng", "is_blackspot"]
             # Pad the rows if the database is old
             padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_comp]
             df_comp = pd.DataFrame(padded_comp, columns=col_names)
@@ -586,8 +589,8 @@ def render_admin_view():
         st.subheader("Administrative Reports")
         all_comp = db.get_all_complaints()
         if all_comp:
-            # SAFETY SHIELD
-            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at"]
+            # SAFETY SHIELD: 16 Columns Total
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at", "lat", "lng", "is_blackspot"]
             padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_comp]
             df = pd.DataFrame(padded_comp, columns=col_names)
             st.dataframe(df, use_container_width=True)
