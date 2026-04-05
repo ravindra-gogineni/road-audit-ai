@@ -402,14 +402,6 @@ def render_admin_view():
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Full Master Log (CSV)", data=csv, file_name="master_complaints.csv")
 
-# --- MAIN RENDER LOGIC ---
-if st.session_state.admin_logged_in:
-    render_admin_view()
-elif st.session_state.show_login:
-    render_login_page()
-else:
-    render_citizen_view(audit)
-
 def update_ui_elements(audit):
     # Metrics
     metrics_placeholder.markdown(f"""
@@ -438,8 +430,13 @@ def update_ui_elements(audit):
         df = pd.DataFrame(audit.detections)
         record_table.dataframe(df.tail(10), use_container_width=True)
 
-# Initial Render
-update_ui_elements(audit)
+# --- MAIN RENDER LOGIC ---
+if st.session_state.admin_logged_in:
+    render_admin_view()
+elif st.session_state.show_login:
+    render_login_page()
+else:
+    render_citizen_view(audit)
 
 # Video Execution Logic
 if not st.session_state.is_running:
