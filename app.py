@@ -314,76 +314,78 @@ if not st.session_state.is_running:
     pass
 else:
     model = load_model()
-    
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        st.error("Error opening video stream or file.")
+    # Verify file existence if it's not a webcam
+    if source_type != "Live Camera" and not os.path.exists(video_path):
+        st.error(f"⚠️ Video File Not Found: {video_path}. Please ensure you have uploaded it!")
         st.session_state.is_running = False
     else:
-        # We fetch GPS once per session to prevent massive lag
-        try: 
-            latlng = geocoder.ip('me').latlng
-            session_gps = f"{latlng[0]:.5f}, {latlng[1]:.5f}" if latlng else "17.3850, 78.4867 (Hyd)"
-        except: 
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            st.error("⚠️ Error opening video source. Check file format or camera access.")
+            st.session_state.is_running = False
+        else:
             session_gps = "GPS Unavailable"
+            frame_count = 0 
+            while cap.isOpened() and st.session_state.is_running:
+                ret, frame = cap.read()
+                if not ret:
+                    st.success("Video processing complete!")
+                    st.session_state.is_running = False
+                    break
             
-        frame_count = 0 
-        while cap.isOpened() and st.session_state.is_running:
-            ret, frame = cap.read()
-            if not ret:
-                st.success("Video processing complete!")
-                st.session_state.is_running = False
-                break
-            
-            frame_count += 1
-            
-            # AI logic runs every frame to ensure detections are never missed
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_area = frame.shape[0] * frame.shape[1]
-            
-            # YOLO Tracking
-            results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
-            
-            if results[0].boxes is not None and results[0].boxes.id is not None:
-                boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
-                ids = results[0].boxes.id.cpu().numpy().astype(int)
+                frame_count += 1
                 
-                for box, track_id in zip(boxes, ids):
-                    severity, cost, color = audit.calculate_severity(box, frame_area)
-                    
-                    if track_id not in audit.processed_ids:
-                        is_dup, cx, cy = audit.is_duplicate(box)
-                        if not is_dup:
-                            audit.processed_ids.add(track_id)
-                            audit.processed_centroids.append((cx, cy))
-                            audit.pothole_count += 1
-                            audit.total_cost += cost
-                            audit.severity_counts[severity] += 1
-                            
-                            audit.detections.append({
-                                "ID": track_id,
-                                "Severity": severity,
-                                "Cost (Rs)": cost,
-                                "Location": session_gps
-                            })
-                    
-                    # Draw boxes on the RGB frame for display
-                    cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
-                    cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
-                # --- PERFORMANCE OPTIMIZATION (CLOUD ONLY) ---
-                # 1. Only update the UI and Video every few frames to reduce lag.
+                # Convert to RGB once
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_area = frame.shape[0] * frame.shape[1]
+                
+                # --- AI SPEED OPTIMIZATION ---
+                # Only run the AI "Brain" every 3 frames to keep the video smooth.
+                # Potholes stay on screen for multiple frames, so we won't miss anything!
                 if frame_count % 3 == 0:
-                    # Resize the frame being displayed to significantly reduce internet bandwidth usage
-                    # This makes the video play much smoother on mobile and slow connections
-                    display_frame = cv2.resize(frame_rgb, (640, 360))
-                    video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
+                    results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
+                    
+                    if results[0].boxes is not None and results[0].boxes.id is not None:
+                        boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                        ids = results[0].boxes.id.cpu().numpy().astype(int)
+                        
+                        for box, track_id in zip(boxes, ids):
+                            severity, cost, color = audit.calculate_severity(box, frame_area)
+                            
+                            if track_id not in audit.processed_ids:
+                                is_dup, cx, cy = audit.is_duplicate(box)
+                                if not is_dup:
+                                    audit.processed_ids.add(track_id)
+                                    audit.processed_centroids.append((cx, cy))
+                                    audit.pothole_count += 1
+                                    audit.total_cost += cost
+                                    audit.severity_counts[severity] += 1
+                                    
+                                    audit.detections.append({
+                                        "ID": track_id,
+                                        "Severity": severity,
+                                        "Cost (Rs)": cost,
+                                        "Location": session_gps
+                                    })
+                            
+                            # Draw boxes on the RGB frame for display
+                            cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
+                            cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+                # --- VIDEO SMOOTHNESS FIX ---
+                # This ensures the video keeps moving in the browser
+                if frame_count % 2 == 0:
+                    try:
+                        display_frame = cv2.resize(frame_rgb, (640, 360))
+                        video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
+                    except:
+                        pass
                 
                 if frame_count % 10 == 0:
                     update_ui_elements(audit)
                     
-                # 2. Add a tiny sleep to let the browser catch up with incoming data.
+                # Small sleep to keep the loop stable
                 time.sleep(0.01)
                     
             cap.release()
