@@ -20,14 +20,16 @@ def init_db():
             details_json TEXT,
             reporter_email TEXT,
             authority_email TEXT,
-            priority TEXT DEFAULT 'Normal'
+            priority TEXT DEFAULT 'Normal',
+            forwarded_at TEXT DEFAULT NULL
         )
     ''')
     # Backup: Add columns if they were missing (Schema Evolution)
     columns_to_add = [
         ("reporter_email", "TEXT"),
         ("authority_email", "TEXT"),
-        ("priority", "TEXT DEFAULT 'Normal'")
+        ("priority", "TEXT DEFAULT 'Normal'"),
+        ("forwarded_at", "TEXT DEFAULT NULL")
     ]
     for col_name, col_type in columns_to_add:
         try:
@@ -56,14 +58,21 @@ def get_all_complaints():
     conn.close()
     return rows
 
-def update_complaint(complaint_id, status, start_in_days):
+def update_complaint(complaint_id, status, start_in_days, forwarded_at=None):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE complaints 
-        SET status = ?, start_in_days = ?
-        WHERE id = ?
-    ''', (status, start_in_days, complaint_id))
+    if forwarded_at:
+        cursor.execute('''
+            UPDATE complaints 
+            SET status = ?, start_in_days = ?, forwarded_at = ?
+            WHERE id = ?
+        ''', (status, start_in_days, forwarded_at, complaint_id))
+    else:
+        cursor.execute('''
+            UPDATE complaints 
+            SET status = ?, start_in_days = ?
+            WHERE id = ?
+        ''', (status, start_in_days, complaint_id))
     conn.commit()
     conn.close()
 

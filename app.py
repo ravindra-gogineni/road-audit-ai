@@ -220,26 +220,19 @@ start_btn = st.sidebar.button("🚀 Start Scan", use_container_width=True, type=
 stop_btn = st.sidebar.button("🛑 Stop Scan", use_container_width=True)
 
 st.sidebar.divider()
-st.sidebar.subheader("📝 Dispatch Details")
+st.sidebar.subheader("📤 Citizen Submission")
 input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
 input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
 input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Ongole Main Road")
+submit_btn = st.sidebar.button("📤 Submit for Official Review", use_container_width=True, type="primary")
 
-st.sidebar.divider()
-st.sidebar.subheader("🏛️ Traffic/Road Authority")
-selected_dist = st.sidebar.selectbox("Select AP District", options=list(AP_DISTRICTS.keys()), index=list(AP_DISTRICTS.keys()).index("Prakasam (Ongole)"))
-default_email = AP_DISTRICTS[selected_dist]
-input_email = st.sidebar.text_input("Target Authority Email", value=default_email)
-send_btn = st.sidebar.button("📧 Send AI Report to Authority", use_container_width=True)
-
-st.sidebar.divider()
-st.sidebar.subheader("🔒 Admin Access")
-admin_pass = st.sidebar.text_input("Enter Admin Password", type="password")
-is_admin = admin_pass == "admin123"
-if admin_pass and not is_admin:
-    st.sidebar.error("❌ Invalid Password")
-elif is_admin:
-    st.sidebar.success("✅ Admin Access Granted")
+with st.sidebar.expander("🔐 Admin Access"):
+    admin_pass = st.text_input("Enter Admin Password", type="password")
+    is_admin = admin_pass == "admin123"
+    if admin_pass and not is_admin:
+        st.error("❌ Invalid Password")
+    elif is_admin:
+        st.success("✅ Admin Access Granted")
 
 # Initialize Session State
 if "audit_state" not in st.session_state:
@@ -289,27 +282,19 @@ if stop_btn: st.session_state.is_running = False
 
 audit = st.session_state.audit_state
 
-# Handle Manual Email Trigger
-if send_btn:
+# Handle Manual Submission (Citizen Flow)
+if submit_btn:
     if not input_name or not input_reporter_email or not input_road:
         st.sidebar.error("⚠️ Please fill in your **Name**, **Email**, and **Road Name** before submitting.")
-    elif audit.pothole_count > 0 and input_email:
-        with st.sidebar.status("Generating Report..."):
-            pdf_path = create_pdf(audit.detections, audit.total_cost, audit.pothole_count, input_name, input_road)
-            success, msg = send_brevo_email(pdf_path, audit.total_cost, input_email, input_name)
-            os.remove(pdf_path) # cleanup
-        if success: 
-            st.sidebar.success(msg)
-            # Calculate Priority
-            priority = "🚨 High" if audit.severity_counts.get("CRITICAL", 0) > 0 else "🟢 Normal"
-            # Save to Database for tracking
-            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, input_email, priority)
-            st.sidebar.info(f"📌 Complaint saved! Priority: {priority}")
-        else: st.sidebar.error(msg)
-    elif not input_email:
-        st.sidebar.warning("Please enter the Authority Email first.")
+    elif audit.pothole_count > 0:
+        # Calculate Priority
+        priority = "🚨 High" if audit.severity_counts.get("CRITICAL", 0) > 0 else "🟢 Normal"
+        # Save to Database for Admin Review
+        db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, "Pending Board Review", priority)
+        st.sidebar.success("✅ Report Submitted! Authorities will review and forward it shortly.")
+        st.sidebar.info(f"📌 Priority Assigned: {priority}")
     else:
-        st.sidebar.warning("No potholes scanned yet. Nothing to send.")
+        st.sidebar.warning("No potholes scanned yet. Nothing to submit.")
 
 # ==========================================
 # 🖥️ DASHBOARD UI
@@ -364,13 +349,14 @@ def render_citizen_view(audit):
                 for res in results:
                     # SAFETY PADDING
                     res_list = list(res)
-                    while len(res_list) < 12: res_list.append("Normal")
+                    while len(res_list) < 13: res_list.append(None)
                     
-                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = res_list
+                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority, forw_at = res_list
                     with st.expander(f"📌 {r_name} ({priority}) - {tstamp}"):
                         col_a, col_b = st.columns(2)
                         col_a.metric("Status", status)
                         col_b.metric("Priority", priority)
+                        if forw_at: st.success(f"📧 Forwarded to Authority on {forw_at}")
                         st.write(f"**Est. Start:** {start_days} days" if start_days else "**Est. Start:** Not Scheduled")
                         st.write(f"**Potholes Detected:** {p_count} | **Est. Repair Cost:** ₹{t_cost:,}")
                         if st.session_state.admin_logged_in:
@@ -383,9 +369,9 @@ def render_citizen_view(audit):
         all_comp = db.get_all_complaints()
         if all_comp:
             # SAFETY SHIELD: Handle missing columns dynamically
-            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"]
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at"]
             # Pad the rows if the database is old
-            padded_comp = [list(r) + ["Normal"] * (len(col_names) - len(r)) for r in all_comp]
+            padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_comp]
             df_comp = pd.DataFrame(padded_comp, columns=col_names)
             
             st.markdown("### Public Status Summary")
@@ -405,16 +391,18 @@ def render_admin_view():
             for comp in all_complaints:
                 # SAFETY PADDING for legacy records
                 comp_list = list(comp)
-                while len(comp_list) < 12: comp_list.append("Normal")
+                while len(comp_list) < 13: comp_list.append(None)
                 
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = comp_list
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, current_auth, priority, forw_at = comp_list
                 with st.expander(f"ID #{c_id}: {r_name} ({priority}) - {status}"):
                     st.markdown(f"### 🛡️ Complaint Overview (Priority: {priority})")
+                    if forw_at: st.success(f"📬 This report was forwarded to {current_auth} on {forw_at}")
+                    
                     col_info1, col_info2, col_info3 = st.columns(3)
                     col_info1.metric("💰 Total Estimate", f"₹{t_cost:,}")
                     col_info2.write(f"**Reporter:** {c_name}")
                     col_info2.write(f"**Contact:** {rep_email}")
-                    col_info3.write(f"**Sent To:** {auth_email}")
+                    col_info3.write(f"**Current Route:** {current_auth}")
                     col_info3.write(f"**Timestamp:** {tstamp}")
                     
                     st.divider()
@@ -431,6 +419,31 @@ def render_admin_view():
 
                     st.divider()
                     st.markdown("### 🛠️ Administrative Actions")
+                    
+                    # --- ROUTING ACTION ---
+                    with st.container(border=True):
+                        st.write("📫 **Forward Report to District Office**")
+                        route_col1, route_col2 = st.columns(2)
+                        target_dist = route_col1.selectbox("Select Target District", options=list(AP_DISTRICTS.keys()), 
+                                                       index=list(AP_DISTRICTS.keys()).index("Prakasam (Ongole)") if "Prakasam (Ongole)" in AP_DISTRICTS else 0,
+                                                       key=f"dist_{c_id}")
+                        target_email = route_col2.text_input("Official Email", value=AP_DISTRICTS[target_dist], key=f"mail_{c_id}")
+                        
+                        if st.button(f"📧 Forward Report #{c_id}", use_container_width=True, type="primary"):
+                            with st.spinner("Processing..."):
+                                detections_raw = json.loads(details)
+                                pdf_path = create_pdf(detections_raw, t_cost, p_count, c_name, r_name)
+                                success, msg = send_brevo_email(pdf_path, t_cost, target_email, c_name)
+                                if os.path.exists(pdf_path): os.remove(pdf_path)
+                                
+                                if success:
+                                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+                                    db.update_complaint(c_id, "Scheduled", 7, current_time) # Auto-schedule for 7 days
+                                    st.success(f"Report forwarded to {target_dist} officials!")
+                                    st.rerun()
+                                else: st.error(msg)
+
+                    st.divider()
                     with st.form(f"edit_form_{c_id}"):
                         col1, col2 = st.columns(2)
                         new_status = col1.selectbox("Status", ["Pending", "Scheduled", "Work Started", "Completed"], 
@@ -452,8 +465,8 @@ def render_admin_view():
         all_comp = db.get_all_complaints()
         if all_comp:
             # SAFETY SHIELD
-            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"]
-            padded_comp = [list(r) + ["Normal"] * (len(col_names) - len(r)) for r in all_comp]
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority", "forwarded_at"]
+            padded_comp = [list(r) + [None] * (len(col_names) - len(r)) for r in all_comp]
             df = pd.DataFrame(padded_comp, columns=col_names)
             st.dataframe(df, use_container_width=True)
             csv = df.to_csv(index=False).encode('utf-8')
