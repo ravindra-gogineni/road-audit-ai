@@ -1,0 +1,8 @@
+streamlit
+ultralytics
+geocoder
+requests
+fpdf
+pandas
+numpy
+opencv-python
