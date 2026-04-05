@@ -126,26 +126,26 @@ def apply_premium_style():
             color: #10b981; font-size: 2.8rem; font-weight: 800; margin-top: 5px;
         }}
         
-        /* Clean Premium Footer */
+        /* Minimalist Icon Footer */
         .footer {{
-            margin-top: 50px;
+            margin-top: 60px;
             padding: 30px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
             color: #94a3b8;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            display: flex; justify-content: center; align-items: center; gap: 30px;
+            flex-wrap: wrap;
         }}
-        .footer-links {{
-            display: flex; justify-content: center; gap: 30px; margin-top: 15px;
+        .footer-icons {{
+            display: flex; gap: 20px;
         }}
-        .footer-links a {{
-            color: #10b981; text-decoration: none; font-weight: 600; transition: 0.3s;
+        .footer-icons a {{
+            font-size: 1.4rem; text-decoration: none; transition: 0.3s;
         }}
-        .footer-links a:hover {{ color: #34d399; text-shadow: 0 0 10px #10b981; }}
+        .footer-icons a:hover {{ transform: scale(1.2); filter: drop-shadow(0 0 8px #10b981); }}
         
-        /* Sidebar Padding fix */
-        [data-testid="stSidebar"] {{ padding-bottom: 50px; }}
-        div.block-container {{ padding-bottom: 3rem !important; }}
+        div.block-container {{ padding-bottom: 5rem !important; }}
         .footer-col {{ min-width: 200px; }}
         .footer-col-title {{ font-size: 0.85rem; font-weight: 700; color: #fff; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }}
         .footer-col-text {{ font-size: 0.9rem; color: #94a3b8; line-height: 1.8; }}
@@ -182,10 +182,9 @@ def render_footer():
     st.markdown(f"""
     <div class="footer">
         <div>© 2026 {PROJECT_TITLE}. All Rights Reserved.</div>
-        <div class="footer-links">
-            <a href="{GITHUB_URL}" target="_blank">💻 GitHub Source Code</a>
-            <a href="{LINKEDIN_URL}" target="_blank" style="margin-left:20px;">🏢 Developer LinkedIn</a>
-            <a href="mailto:hello@andhraroad.in" style="margin-left:20px;">📥 Contact Us</a>
+        <div class="footer-icons">
+            <a href="{GITHUB_URL}" target="_blank" title="GitHub Source">💻</a>
+            <a href="{LINKEDIN_URL}" target="_blank" title="Developer LinkedIn">💼</a>
         </div>
     </div>
     """, unsafe_allow_html=True)
