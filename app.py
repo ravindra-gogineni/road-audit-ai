@@ -90,15 +90,15 @@ class RoadAuditState:
         width, height = x2 - x1, y2 - y1
         percent_area = ((width * height) / frame_area) * 100
         
-        # --- SENSITIVITY CALIBRATION (Finetuned for Dashboard) ---
-        # We lowered these thresholds so that normal potholes show up as Moderate/Critical
+        # --- FINAL "PERFECT DEMO" CALIBRATION ---
+        # Balanced thresholds to prevent too many "Critical" alerts while staying accurate
         base_cost = 500
-        if percent_area < 0.5: 
-            return "MINOR", int(base_cost + percent_area * 500), (16, 185, 129) # Modern Green
-        elif 0.5 <= percent_area < 3.0: 
-            return "MODERATE", int(base_cost + percent_area * 1500), (245, 158, 11) # Modern Orange
+        if percent_area < 1.0: 
+            return "MINOR", int(base_cost + percent_area * 500), (16, 185, 129) # Green
+        elif 1.0 <= percent_area < 5.0: 
+            return "MODERATE", int(base_cost + percent_area * 1500), (245, 158, 11) # Orange
         else: 
-            return "CRITICAL", int(base_cost + percent_area * 5000), (239, 68, 68) # Modern Red
+            return "CRITICAL", int(base_cost + percent_area * 5000), (239, 68, 68) # Red
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
@@ -351,55 +351,56 @@ else:
             
                 frame_count += 1
                 
-                # Convert to RGB once
+                # Convert to RGB once for AI and display
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_area = frame.shape[0] * frame.shape[1]
                 
-                # --- SYNCED AI & VIDEO (CLOUD FIX) ---
-                # We process and show the video on the SAME frames (every 3rd one)
-                # This ensures the Boxes and Labels are ALWAYS visible.
-                if frame_count % 3 == 0:
-                    results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
+                # --- ACCURACY PRIORITY ---
+                # Run the AI on EVERY FRAME so we never miss a pothole!
+                results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
+                
+                if results[0].boxes is not None and results[0].boxes.id is not None:
+                    boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                    ids = results[0].boxes.id.cpu().numpy().astype(int)
                     
-                    if results[0].boxes is not None and results[0].boxes.id is not None:
-                        boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
-                        ids = results[0].boxes.id.cpu().numpy().astype(int)
+                    for box, track_id in zip(boxes, ids):
+                        severity, cost, color = audit.calculate_severity(box, frame_area)
                         
-                        for box, track_id in zip(boxes, ids):
-                            severity, cost, color = audit.calculate_severity(box, frame_area)
-                            
-                            if track_id not in audit.processed_ids:
-                                is_dup, cx, cy = audit.is_duplicate(box)
-                                if not is_dup:
-                                    audit.processed_ids.add(track_id)
-                                    audit.processed_centroids.append((cx, cy))
-                                    audit.pothole_count += 1
-                                    audit.total_cost += cost
-                                    audit.severity_counts[severity] += 1
-                                    
-                                    audit.detections.append({
-                                        "ID": track_id,
-                                        "Severity": severity,
-                                        "Cost (Rs)": cost,
-                                        "Location": session_gps
-                                    })
-                            
-                            # Draw boxes on the RGB frame for display
-                            cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
-                            cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                        if track_id not in audit.processed_ids:
+                            is_dup, cx, cy = audit.is_duplicate(box)
+                            if not is_dup:
+                                audit.processed_ids.add(track_id)
+                                audit.processed_centroids.append((cx, cy))
+                                audit.pothole_count += 1
+                                audit.total_cost += cost
+                                audit.severity_counts[severity] += 1
+                                
+                                audit.detections.append({
+                                    "ID": track_id,
+                                    "Severity": severity,
+                                    "Cost (Rs)": cost,
+                                    "Location": session_gps
+                                })
+                        
+                        # Draw boxes on the RGB frame for display
+                        cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
+                        cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-                    # NOW we show the frame (only after drawing boxes)
+                # --- SMOOTHNESS PRIORITY ---
+                # We only send 1 frame to the web for every 5 AI scans.
+                # This makes the video stream light and fast!
+                if frame_count % 5 == 0:
                     try:
-                        display_frame = cv2.resize(frame_rgb, (640, 360))
+                        # Ultra-low res for cloud speed
+                        display_frame = cv2.resize(frame_rgb, (480, 270))
                         video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
                     except:
                         pass
                 
-                if frame_count % 10 == 0:
+                if frame_count % 15 == 0:
                     update_ui_elements(audit)
                     
-                # Small sleep to keep the loop stable
                 time.sleep(0.01)
                     
             cap.release()
