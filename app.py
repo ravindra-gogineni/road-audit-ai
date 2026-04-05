@@ -372,15 +372,18 @@ else:
                     cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            # --- PERFORMANCE OPTIMIZATION (CLOUD ONLY) ---
-            # 1. Only update the UI and Video every few frames to reduce lag.
-            if frame_count % 3 == 0:
-                video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
-            
-            if frame_count % 10 == 0:
-                update_ui_elements(audit)
+                # --- PERFORMANCE OPTIMIZATION (CLOUD ONLY) ---
+                # 1. Only update the UI and Video every few frames to reduce lag.
+                if frame_count % 3 == 0:
+                    # Resize the frame being displayed to significantly reduce internet bandwidth usage
+                    # This makes the video play much smoother on mobile and slow connections
+                    display_frame = cv2.resize(frame_rgb, (640, 360))
+                    video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
                 
-            # 2. Add a tiny sleep to let the browser catch up with incoming data.
-            time.sleep(0.01)
-                
-        cap.release()
+                if frame_count % 10 == 0:
+                    update_ui_elements(audit)
+                    
+                # 2. Add a tiny sleep to let the browser catch up with incoming data.
+                time.sleep(0.01)
+                    
+            cap.release()
