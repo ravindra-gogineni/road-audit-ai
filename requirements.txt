@@ -9,12 +9,5 @@ requests
 geocoder
 folium
 streamlit-folium
-sqlite3
 branca
-json
-base64
-math
-time
-os
-datetime
-tempfile
+# Built-in libraries (json, os, etc.) removed to prevent installation errors
