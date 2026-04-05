@@ -337,7 +337,7 @@ def render_citizen_view(audit):
         st.subheader("Aggregated Data & Reporting")
         all_comp = db.get_all_complaints()
         if all_comp:
-            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details"])
+            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email"])
             st.markdown("### Public Status Summary")
             st.dataframe(df_comp[["road", "name", "status", "time"]].tail(5), use_container_width=True)
 
