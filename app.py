@@ -404,10 +404,10 @@ else:
                         # Ultra-low res for cloud speed
                         display_frame = cv2.resize(frame_rgb, (480, 270))
                         video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
+                        update_ui_elements(audit) # Update the stats/table live with the video
                     except:
                         pass
-                
-                if frame_count % 15 == 0:
-                    update_ui_elements(audit)
+                    
+                time.sleep(0.01)
                     
             cap.release()
