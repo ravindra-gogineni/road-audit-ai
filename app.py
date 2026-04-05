@@ -20,6 +20,20 @@ import database_handler as db
 # Initialize Database
 db.init_db()
 
+# --- INITIALIZE SESSION STATE ---
+if "audit_state" not in st.session_state:
+    st.session_state.audit_state = RoadAuditState()
+if "is_running" not in st.session_state:
+    st.session_state.is_running = False
+if "last_chart_count" not in st.session_state:
+    st.session_state.last_chart_count = -1
+if "last_source" not in st.session_state:
+    st.session_state.last_source = "Demo Video"
+if "admin_logged_in" not in st.session_state:
+    st.session_state.admin_logged_in = False
+if "show_login" not in st.session_state:
+    st.session_state.show_login = False
+
 # ==========================================
 # ⚙️ CONFIGURATION & CSS
 # ==========================================
@@ -234,20 +248,6 @@ else:
     start_btn = stop_btn = submit_btn = False # placeholder buttons to avoid name errors
     video_path = None
 
-# Initialize Session State
-if "audit_state" not in st.session_state:
-    st.session_state.audit_state = RoadAuditState()
-if "is_running" not in st.session_state:
-    st.session_state.is_running = False
-if "last_chart_count" not in st.session_state:
-    st.session_state.last_chart_count = -1
-if "last_source" not in st.session_state:
-    st.session_state.last_source = source_type
-if "admin_logged_in" not in st.session_state:
-    st.session_state.admin_logged_in = False
-if "show_login" not in st.session_state:
-    st.session_state.show_login = False
-
 # Sidebar Role Switcher
 st.sidebar.divider()
 if st.session_state.admin_logged_in:
@@ -264,8 +264,9 @@ else:
             st.session_state.show_login = False
             st.rerun()
 
+# Initialize Session State
 # AUTO-RESET: If they switch from Demo to Upload, clear the screen immediately
-if st.session_state.last_source != source_type:
+if "source_type" in locals() and st.session_state.get("last_source") != source_type:
     st.session_state.audit_state = RoadAuditState()
     st.session_state.last_chart_count = -1
     st.session_state.last_source = source_type
