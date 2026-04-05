@@ -507,11 +507,11 @@ def render_admin_view():
             st.info("No complaints have been submitted yet.")
         else:
             for comp in all_complaints:
-                # SAFETY PADDING for legacy records
+                # SAFETY PADDING for legacy records (16 Columns Total)
                 comp_list = list(comp)
-                while len(comp_list) < 13: comp_list.append(None)
+                while len(comp_list) < 16: comp_list.append(None)
                 
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, current_auth, priority, forw_at = comp_list
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, current_auth, priority, forw_at, lat, lng, is_black = comp_list
                 with st.expander(f"ID #{c_id}: {r_name} ({priority}) - {status}"):
                     st.markdown(f"### 🛡️ Complaint Overview (Priority: {priority})")
                     if forw_at: st.success(f"📬 This report was forwarded to {current_auth} on {forw_at}")
