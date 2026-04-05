@@ -5,4 +5,5 @@ requests
 fpdf
 pandas
 numpy
-opencv-python
+opencv-python-headless
+plotly
