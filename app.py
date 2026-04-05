@@ -506,9 +506,9 @@ else:
                                 audit.severity_counts[severity] += 1
                                 
                                 audit.detections.append({
-                                    "ID": track_id,
+                                    "ID": int(track_id),
                                     "Severity": severity,
-                                    "Cost (Rs)": cost,
+                                    "Cost (Rs)": int(cost),
                                     "Location": session_gps
                                 })
                         
