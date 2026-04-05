@@ -198,6 +198,15 @@ if "is_running" not in st.session_state:
     st.session_state.is_running = False
 if "last_chart_count" not in st.session_state:
     st.session_state.last_chart_count = -1
+if "last_source" not in st.session_state:
+    st.session_state.last_source = source_type
+
+# AUTO-RESET: If they switch from Demo to Upload, clear the screen immediately
+if st.session_state.last_source != source_type:
+    st.session_state.audit_state = RoadAuditState()
+    st.session_state.last_chart_count = -1
+    st.session_state.last_source = source_type
+    st.session_state.is_running = False
 
 # Button Logic
 if start_btn: 
