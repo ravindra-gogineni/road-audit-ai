@@ -328,9 +328,18 @@ else:
         st.error(f"⚠️ Video File Not Found: {video_path}. Please ensure you have uploaded it!")
         st.session_state.is_running = False
     else:
-        cap = cv2.VideoCapture(video_path)
+        # Special handling for Camera Access
+        if source_type == "Live Camera":
+            # Try to open webcam (0 is usually the default)
+            cap = cv2.VideoCapture(0)
+        else:
+            cap = cv2.VideoCapture(video_path)
+
         if not cap.isOpened():
-            st.error("⚠️ Error opening video source. Check file format or camera access.")
+            if source_type == "Live Camera":
+                st.error("📷 **Camera Access Failed**: This usually happens on Streamlit Cloud (which doesn't support direct webcam) or if your camera is being used by another app. **Please use 'Upload Video' for the smoothest demo experience!**")
+            else:
+                st.error(f"⚠️ **Error opening file**: {video_path}. Please check if the file format is supported (.mp4, .avi).")
             st.session_state.is_running = False
         else:
             # --- SMART GPS LOGIC ---
