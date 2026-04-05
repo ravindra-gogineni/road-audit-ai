@@ -93,13 +93,21 @@ def apply_premium_style():
         .top-bar {{
             position: fixed;
             top: 0; left: 0; width: 100%;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(12px);
             z-index: 9999;
-            padding: 15px 30px;
-            border-bottom: 2px solid rgba(16, 185, 129, 0.3);
+            padding: 10px 40px;
+            border-bottom: 2px solid rgba(16, 185, 129, 0.5);
             display: flex; justify-content: space-between; align-items: center;
         }}
+        .top-bar-title {{ font-size: 1.5rem; font-weight: 700; color: #fff; text-decoration: none; }}
+        .header-btn {{
+            background: #10b981; color: white !important; 
+            padding: 8px 18px; border-radius: 8px; 
+            text-decoration: none; font-weight: 700; font-size: 0.85rem;
+            transition: 0.3s;
+        }}
+        .header-btn:hover {{ background: #059669; box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }}
         
         /* Glassmorphism Metric Cards - REPAIRED */
         .metric-container {{
@@ -157,13 +165,13 @@ def apply_premium_style():
     </style>
     
     <div class="top-bar">
-        <div style="font-size: 1.4rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
-            🛣️ <span style="background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{PROJECT_TITLE}</span>
-        </div>
-        <div style="font-size: 0.7rem; letter-spacing: 1px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; padding: 5px 15px; border-radius: 50px; font-weight: 700;">
-             AUTHORITY SECURE ACCESS
+        <a href="/" target="_self" class="top-bar-title">🛣️ {PROJECT_TITLE}</a>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <a href="https://github.com/ravindra-gogineni" target="_blank" style="color: #94a3b8; text-decoration: none; font-size: 1.2rem;">💻</a>
+            <a href="https://www.linkedin.com/in/ravindra-gogineni-034501212" target="_blank" style="color: #94a3b8; text-decoration: none; font-size: 1.2rem;">💼</a>
         </div>
     </div>
+    <div style="margin-top: 100px;"></div>
     """, unsafe_allow_html=True)
 
 def render_footer():
@@ -361,12 +369,12 @@ page_nav = st.sidebar.radio("Go To", ["🏠 Dashboard", "🗺️ Safety Hub"], i
 # Sidebar Role Switcher
 st.sidebar.divider()
 if st.session_state.admin_logged_in:
-    st.sidebar.success("Logged in as Admin")
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
+    if st.sidebar.button("🚪 Logout", key="logout_btn", use_container_width=True):
         st.session_state.admin_logged_in = False
         st.rerun()
 else:
-    if st.sidebar.button("🔒 Admin Portal", use_container_width=True):
+    # Use a clean button for login that triggers the modal
+    if st.sidebar.button("🔐 Authority Login", key="login_trigger", use_container_width=True):
         st.session_state.show_login = True
         st.rerun()
     if st.session_state.show_login:
@@ -562,7 +570,6 @@ def render_citizen_view(audit):
             st.dataframe(df_comp[["road", "priority", "status", "cost", "time"]].tail(5), use_container_width=True)
 
 def render_admin_view():
-    apply_premium_style()
     st.title(f"🏛️ {PROJECT_TITLE} - Authority Portal")
     st.info("Authorized Personnel Only: Review, Route, and Manage Community Hazards.")
     
@@ -719,12 +726,20 @@ def update_ui_elements(audit):
         record_table.dataframe(df.tail(10), use_container_width=True)
 
 # --- MAIN RENDER LOGIC ---
-if st.session_state.admin_logged_in:
-    render_admin_view()
-elif st.session_state.show_login:
-    render_login_page()
-else:
-    render_citizen_view(audit)
+def main():
+    apply_premium_style()
+    
+    if st.session_state.show_login:
+        render_login_page()
+    elif st.session_state.admin_logged_in:
+        render_admin_view()
+    else:
+        render_citizen_view(audit)
+    
+    render_footer()
+
+if __name__ == "__main__":
+    main()
 
 # Video Execution Logic
 if not st.session_state.is_running:
