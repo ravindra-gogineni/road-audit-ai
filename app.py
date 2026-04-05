@@ -87,58 +87,58 @@ st.set_page_config(page_title=PROJECT_TITLE, page_icon="🛣️", layout="wide")
 def apply_premium_style():
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
-        
-        * {{ font-family: 'Outfit', sans-serif !important; }}
+        h1, h2, h3, p, .metric-title, .metric-value, .top-bar {{ font-family: 'Outfit', sans-serif !important; }}
         
         /* Sticky Top Bar */
         .top-bar {{
             position: fixed;
             top: 0; left: 0; width: 100%;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
             z-index: 9999;
-            padding: 10px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            border-bottom: 2px solid rgba(16, 185, 129, 0.3);
             display: flex; justify-content: space-between; align-items: center;
         }}
         
-        /* Glassmorphism Metric Cards */
-        [data-testid="stMetricValue"] {{
-            font-size: 2rem; color: #10b981; font-weight: 700;
-        }}
-        .metric-card {{
-            background: rgba(255, 255, 255, 0.03);
+        /* Glassmorphism Metric Cards - REPAIRED */
+        .metric-container {{
+            background: rgba(30, 41, 59, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px; padding: 20px;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            border-radius: 16px; padding: 25px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }}
+        .metric-title {{
+            color: #94a3b8; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+        }}
+        .metric-value {{
+            color: #10b981; font-size: 2.8rem; font-weight: 800; margin-top: 5px;
         }}
         
-        /* Premium Footer */
+        /* Universal Footer */
         .footer {{
-            position: relative; margin-top: 50px;
-            padding: 40px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-            background: transparent; color: #94a3b8;
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap;
+            margin-top: 80px; padding: 40px 20px; 
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center; color: #94a3b8; font-size: 0.85rem;
         }}
-        .footer a {{ color: #10b981; text-decoration: none; margin-left: 15px; font-weight: 600; }}
-        .footer a:hover {{ text-decoration: underline; }}
+        .footer-links {{ display: flex; justify-content: center; gap: 30px; margin-top: 15px; }}
+        .footer-links a {{ color: #10b981; text-decoration: none; font-weight: 600; transition: 0.3s; }}
+        .footer-links a:hover {{ color: #34d399; text-shadow: 0 0 10px #10b981; }}
         
-        /* Mobile Overrides */
-        @media (max-width: 768px) {{
-            .top-bar {{ position: relative; padding: 5px 10px; }}
-            .footer {{ flex-direction: column; text-align: center; gap: 15px; }}
-        }}
+        /* Fix Streamlit Overrides */
+        [data-testid="stMetricValue"] {{ display: none; }}
+        [data-testid="stMetricLabel"] {{ display: none; }}
     </style>
     
     <div class="top-bar">
-        <div style="font-size: 1.2rem; font-weight: 700; color: #fff;">
-            🛣️ {PROJECT_TITLE}
+        <div style="font-size: 1.4rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
+            🛣️ <span style="background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{PROJECT_TITLE}</span>
         </div>
-        <div style="font-size: 0.8rem; background: #10b981; color: #fff; padding: 4px 10px; border-radius: 20px; font-weight: 600;">
-             SECURE ACCESS
+        <div style="font-size: 0.7rem; letter-spacing: 1px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; padding: 5px 15px; border-radius: 50px; font-weight: 700;">
+             AUTHORITY SECURE ACCESS
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -147,10 +147,10 @@ def render_footer():
     st.markdown(f"""
     <div class="footer">
         <div>© 2026 {PROJECT_TITLE}. All Rights Reserved.</div>
-        <div>
-            <a href="{GITHUB_URL}" target="_blank">🔗 GitHub</a>
-            <a href="{LINKEDIN_URL}" target="_blank">💼 LinkedIn</a>
-            <a href="mailto:contact@{PROJECT_TITLE.lower().replace(' ', '')}.in">📧 Contact Us</a>
+        <div class="footer-links">
+            <a href="{GITHUB_URL}" target="_blank">💻 GitHub Source</a>
+            <a href="{LINKEDIN_URL}" target="_blank">🏢 Developer LinkedIn</a>
+            <a href="mailto:contact@{PROJECT_TITLE.lower().replace(' ', '')}.in">📥 Contact Us</a>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -527,17 +527,11 @@ def render_admin_view():
     total_budget = sum(c[4] for c in all_complaints) if all_complaints else 0
     
     with col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("📦 Total Reports", len(all_complaints) if all_complaints else 0)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><div class="metric-title">📦 Total Reports</div><div class="metric-value">{len(all_complaints) if all_complaints else 0}</div></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("⚠️ Total Potholes", total_potholes)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><div class="metric-title">⚠️ Total Potholes</div><div class="metric-value">{total_potholes}</div></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("💰 Total Est. Budget", f"₹{total_budget:,}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><div class="metric-title">💰 Est. Budget</div><div class="metric-value">₹{total_budget:,}</div></div>', unsafe_allow_html=True)
     
     st.divider()
     
@@ -655,18 +649,10 @@ def render_admin_view():
             )
         else:
             st.warning("No data available for reporting yet.")
-            
-    render_footer()
 
 def update_ui_elements(audit):
     # Metrics
     metrics_placeholder.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">DEFECTS LOGGED</div>
-            <div class="metric-count">{audit.pothole_count}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-title">ESTIMATED REPAIR BILL</div>
             <div class="metric-cost">₹ {audit.total_cost:,}</div>
         </div>
     """, unsafe_allow_html=True)
