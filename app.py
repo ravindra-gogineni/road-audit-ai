@@ -344,9 +344,9 @@ else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_area = frame.shape[0] * frame.shape[1]
                 
-                # --- AI SPEED OPTIMIZATION ---
-                # Only run the AI "Brain" every 3 frames to keep the video smooth.
-                # Potholes stay on screen for multiple frames, so we won't miss anything!
+                # --- SYNCED AI & VIDEO (CLOUD FIX) ---
+                # We process and show the video on the SAME frames (every 3rd one)
+                # This ensures the Boxes and Labels are ALWAYS visible.
                 if frame_count % 3 == 0:
                     results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
                     
@@ -378,9 +378,7 @@ else:
                             cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-                # --- VIDEO SMOOTHNESS FIX ---
-                # This ensures the video keeps moving in the browser
-                if frame_count % 2 == 0:
+                    # NOW we show the frame (only after drawing boxes)
                     try:
                         display_frame = cv2.resize(frame_rgb, (640, 360))
                         video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
