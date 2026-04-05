@@ -24,12 +24,16 @@ def init_db():
         )
     ''')
     # Backup: Add columns if they were missing (Schema Evolution)
-    try:
-        cursor.execute("ALTER TABLE complaints ADD COLUMN reporter_email TEXT")
-        cursor.execute("ALTER TABLE complaints ADD COLUMN authority_email TEXT")
-        cursor.execute("ALTER TABLE complaints ADD COLUMN priority TEXT")
-    except:
-        pass
+    columns_to_add = [
+        ("reporter_email", "TEXT"),
+        ("authority_email", "TEXT"),
+        ("priority", "TEXT DEFAULT 'Normal'")
+    ]
+    for col_name, col_type in columns_to_add:
+        try:
+            cursor.execute(f"ALTER TABLE complaints ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass # Column already exists or table is locked
     conn.commit()
     conn.close()
 

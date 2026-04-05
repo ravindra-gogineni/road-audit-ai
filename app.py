@@ -13,6 +13,7 @@ from fpdf import FPDF
 import base64
 import requests
 import tempfile
+import sqlite3
 import database_handler as db
 
 # Initialize Database
@@ -28,6 +29,36 @@ DEFAULT_VIDEO = "demo.mp4"
 BREVO_API_KEY = st.secrets["BREVO_API_KEY"] if "BREVO_API_KEY" in st.secrets else "PASTE_LOCAL_KEY_HERE"
 SENDER_NAME = "Citizen Road Reporter"
 SENDER_EMAIL = "revathinalluri999@gmail.com"
+
+# --- ANDHRA PRADESH DISTRICTS & TARGET EMAILS ---
+AP_DISTRICTS = {
+    "Alluri Sitharama Raju": "pmu.asr@ap.gov.in",
+    "Anakapalli": "ce.anakapalli@ap.gov.in",
+    "Ananthapuramu": "ce.atp@ap.gov.in",
+    "Annamayya": "ee.annamayya@ap.gov.in",
+    "Bapatla": "pmu.bapatla@ap.gov.in",
+    "Chittoor": "ce.chittoor@ap.gov.in",
+    "Dr. B.R. Ambedkar Konaseema": "ee.konaseema@ap.gov.in",
+    "East Godavari": "ce.egodavari@ap.gov.in",
+    "Eluru": "pmu.eluru@ap.gov.in",
+    "Guntur": "ce.guntur@ap.gov.in",
+    "Kakinada": "ee.kakinada@ap.gov.in",
+    "Krishna": "ce.krishna@ap.gov.in",
+    "Kurnool": "ce.kurnool@ap.gov.in",
+    "Nandyal": "pmu.nandyal@ap.gov.in",
+    "NTR": "ce.ntr@ap.gov.in",
+    "Palnadu": "ee.palnadu@ap.gov.in",
+    "Parvathipuram Manyam": "pmu.manyam@ap.gov.in",
+    "Prakasam (Ongole)": "ce.prakasam@ap.gov.in",
+    "Sri Potti Sriramulu Nellore": "ce.nellore@ap.gov.in",
+    "Sri Sathya Sai": "pmu.sss@ap.gov.in",
+    "Srikakulam": "ce.srikakulam@ap.gov.in",
+    "Tirupati": "ce.tirupati@ap.gov.in",
+    "Visakhapatnam": "ce.vizag@ap.gov.in",
+    "Vizianagaram": "ce.vizianagaram@ap.gov.in",
+    "West Godavari": "ce.wgodavari@ap.gov.in",
+    "YSR Kadapa": "ce.kadapa@ap.gov.in"
+}
 
 st.set_page_config(page_title="Citizen Road Reporter", layout="wide", page_icon="🛣️", initial_sidebar_state="expanded")
 
@@ -192,9 +223,14 @@ st.sidebar.divider()
 st.sidebar.subheader("📝 Dispatch Details")
 input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
 input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
-input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Main Street, Sector 4")
-input_email = st.sidebar.text_input("Authority Email", placeholder="pwd@gov.in")
-send_btn = st.sidebar.button("📧 Send Report to Authority", use_container_width=True)
+input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Ongole Main Road")
+
+st.sidebar.divider()
+st.sidebar.subheader("🏛️ Traffic/Road Authority")
+selected_dist = st.sidebar.selectbox("Select AP District", options=list(AP_DISTRICTS.keys()), index=list(AP_DISTRICTS.keys()).index("Prakasam (Ongole)"))
+default_email = AP_DISTRICTS[selected_dist]
+input_email = st.sidebar.text_input("Target Authority Email", value=default_email)
+send_btn = st.sidebar.button("📧 Send AI Report to Authority", use_container_width=True)
 
 st.sidebar.divider()
 st.sidebar.subheader("🔒 Admin Access")
@@ -326,7 +362,11 @@ def render_citizen_view(audit):
             results = db.search_complaints(search_q)
             if results:
                 for res in results:
-                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = res
+                    # SAFETY PADDING
+                    res_list = list(res)
+                    while len(res_list) < 12: res_list.append("Normal")
+                    
+                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = res_list
                     with st.expander(f"📌 {r_name} ({priority}) - {tstamp}"):
                         col_a, col_b = st.columns(2)
                         col_a.metric("Status", status)
@@ -342,7 +382,12 @@ def render_citizen_view(audit):
         st.subheader("Aggregated Data & Reporting")
         all_comp = db.get_all_complaints()
         if all_comp:
-            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"])
+            # SAFETY SHIELD: Handle missing columns dynamically
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"]
+            # Pad the rows if the database is old
+            padded_comp = [list(r) + ["Normal"] * (len(col_names) - len(r)) for r in all_comp]
+            df_comp = pd.DataFrame(padded_comp, columns=col_names)
+            
             st.markdown("### Public Status Summary")
             st.dataframe(df_comp[["road", "priority", "status", "cost", "time"]].tail(5), use_container_width=True)
 
@@ -358,8 +403,11 @@ def render_admin_view():
             st.info("No complaints have been submitted yet.")
         else:
             for comp in all_complaints:
-                # Updated tuple unpacking for the new schema
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = comp
+                # SAFETY PADDING for legacy records
+                comp_list = list(comp)
+                while len(comp_list) < 12: comp_list.append("Normal")
+                
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = comp_list
                 with st.expander(f"ID #{c_id}: {r_name} ({priority}) - {status}"):
                     st.markdown(f"### 🛡️ Complaint Overview (Priority: {priority})")
                     col_info1, col_info2, col_info3 = st.columns(3)
@@ -403,7 +451,10 @@ def render_admin_view():
         st.subheader("Administrative Reports")
         all_comp = db.get_all_complaints()
         if all_comp:
-            df = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"])
+            # SAFETY SHIELD
+            col_names = ["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"]
+            padded_comp = [list(r) + ["Normal"] * (len(col_names) - len(r)) for r in all_comp]
+            df = pd.DataFrame(padded_comp, columns=col_names)
             st.dataframe(df, use_container_width=True)
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Full Master Log (CSV)", data=csv, file_name="master_complaints.csv")
