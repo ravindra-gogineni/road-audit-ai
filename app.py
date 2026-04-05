@@ -126,21 +126,38 @@ def apply_premium_style():
             color: #10b981; font-size: 2.8rem; font-weight: 800; margin-top: 5px;
         }}
         
-        /* Premium Universal Footer - REBUILT TO MATCH SCREENSHOT */
+        /* Premium Universal Footer - FULL WIDTH UPGRADE */
         .footer-invitation {{
             background: #0f172a;
             padding: 80px 20px 40px 20px;
             text-align: center;
             border-top: 2px solid rgba(255, 255, 255, 0.05);
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
         }}
         .footer-invite-text {{ font-size: 2.2rem; font-weight: 600; color: #fff; margin-bottom: 20px; }}
-        .footer-email {{ font-size: 2.8rem; font-weight: 400; color: #fbbf24; text-decoration: none; }}
+        .footer-email {{ font-size: 2.8rem; font-weight: 400; color: #fbbf24 !important; text-decoration: none; }}
         
         .footer-grid {{
             background: #020617;
             padding: 60px 40px;
             display: flex; justify-content: center; gap: 80px;
             flex-wrap: wrap;
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+        }}
+        
+        /* Remove Streamlit default white space at bottom */
+        div.block-container {{
+            padding-bottom: 0rem !important;
         }}
         .footer-col {{ min-width: 200px; }}
         .footer-col-title {{ font-size: 0.85rem; font-weight: 700; color: #fff; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }}
