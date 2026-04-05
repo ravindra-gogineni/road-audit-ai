@@ -255,16 +255,20 @@ audit = st.session_state.audit_state
 
 # Handle Manual Email Trigger
 if send_btn:
-    if audit.pothole_count > 0 and input_email:
+    if not input_name or not input_reporter_email or not input_road:
+        st.sidebar.error("⚠️ Please fill in your **Name**, **Email**, and **Road Name** before submitting.")
+    elif audit.pothole_count > 0 and input_email:
         with st.sidebar.status("Generating Report..."):
             pdf_path = create_pdf(audit.detections, audit.total_cost, audit.pothole_count, input_name, input_road)
             success, msg = send_brevo_email(pdf_path, audit.total_cost, input_email, input_name)
             os.remove(pdf_path) # cleanup
         if success: 
             st.sidebar.success(msg)
+            # Calculate Priority
+            priority = "🚨 High" if audit.severity_counts.get("CRITICAL", 0) > 0 else "🟢 Normal"
             # Save to Database for tracking
-            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, input_email)
-            st.sidebar.info("📌 Complaint saved to tracking system.")
+            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, input_email, priority)
+            st.sidebar.info(f"📌 Complaint saved! Priority: {priority}")
         else: st.sidebar.error(msg)
     elif not input_email:
         st.sidebar.warning("Please enter the Authority Email first.")
@@ -322,11 +326,12 @@ def render_citizen_view(audit):
             results = db.search_complaints(search_q)
             if results:
                 for res in results:
-                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email = res
-                    with st.expander(f"📌 {r_name} (Reported by {c_name}) - {tstamp}"):
+                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = res
+                    with st.expander(f"📌 {r_name} ({priority}) - {tstamp}"):
                         col_a, col_b = st.columns(2)
                         col_a.metric("Status", status)
-                        col_b.metric("Est. Start", f"{start_days} days" if start_days else "Not Scheduled")
+                        col_b.metric("Priority", priority)
+                        st.write(f"**Est. Start:** {start_days} days" if start_days else "**Est. Start:** Not Scheduled")
                         st.write(f"**Potholes Detected:** {p_count} | **Est. Repair Cost:** ₹{t_cost:,}")
                         if st.session_state.admin_logged_in:
                              st.write(f"**From:** {c_name} ({rep_email}) | **To Authority:** {auth_email}")
@@ -337,9 +342,9 @@ def render_citizen_view(audit):
         st.subheader("Aggregated Data & Reporting")
         all_comp = db.get_all_complaints()
         if all_comp:
-            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email"])
+            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"])
             st.markdown("### Public Status Summary")
-            st.dataframe(df_comp[["road", "name", "cost", "status", "time"]].tail(5), use_container_width=True)
+            st.dataframe(df_comp[["road", "priority", "status", "cost", "time"]].tail(5), use_container_width=True)
 
 def render_admin_view():
     st.title("🏛️ Authority Portal")
@@ -354,14 +359,15 @@ def render_admin_view():
         else:
             for comp in all_complaints:
                 # Updated tuple unpacking for the new schema
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email = comp
-                with st.expander(f"ID #{c_id}: {r_name} - {status} ({tstamp})"):
-                    st.markdown("### 📋 Complaint Overview")
-                    col_info1, col_info2 = st.columns(2)
-                    col_info1.write(f"**Reporter:** {c_name}")
-                    col_info1.write(f"**Contact:** {rep_email}")
-                    col_info2.write(f"**Sent To:** {auth_email}")
-                    col_info2.write(f"**Timestamp:** {tstamp}")
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email, priority = comp
+                with st.expander(f"ID #{c_id}: {r_name} ({priority}) - {status}"):
+                    st.markdown(f"### 🛡️ Complaint Overview (Priority: {priority})")
+                    col_info1, col_info2, col_info3 = st.columns(3)
+                    col_info1.metric("💰 Total Estimate", f"₹{t_cost:,}")
+                    col_info2.write(f"**Reporter:** {c_name}")
+                    col_info2.write(f"**Contact:** {rep_email}")
+                    col_info3.write(f"**Sent To:** {auth_email}")
+                    col_info3.write(f"**Timestamp:** {tstamp}")
                     
                     st.divider()
                     st.markdown("### 💰 Itemized Cost Details")
@@ -397,7 +403,7 @@ def render_admin_view():
         st.subheader("Administrative Reports")
         all_comp = db.get_all_complaints()
         if all_comp:
-            df = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email"])
+            df = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email", "priority"])
             st.dataframe(df, use_container_width=True)
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Full Master Log (CSV)", data=csv, file_name="master_complaints.csv")

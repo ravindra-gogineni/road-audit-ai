@@ -19,26 +19,28 @@ def init_db():
             timestamp DATETIME,
             details_json TEXT,
             reporter_email TEXT,
-            authority_email TEXT
+            authority_email TEXT,
+            priority TEXT DEFAULT 'Normal'
         )
     ''')
     # Backup: Add columns if they were missing (Schema Evolution)
     try:
         cursor.execute("ALTER TABLE complaints ADD COLUMN reporter_email TEXT")
         cursor.execute("ALTER TABLE complaints ADD COLUMN authority_email TEXT")
+        cursor.execute("ALTER TABLE complaints ADD COLUMN priority TEXT")
     except:
         pass
     conn.commit()
     conn.close()
 
-def add_complaint(reporter_name, road_name, pothole_count, total_cost, detections, reporter_email, authority_email):
+def add_complaint(reporter_name, road_name, pothole_count, total_cost, detections, reporter_email, authority_email, priority):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     details_json = json.dumps(detections)
     cursor.execute('''
-        INSERT INTO complaints (reporter_name, road_name, pothole_count, total_cost, timestamp, details_json, reporter_email, authority_email)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (reporter_name, road_name, pothole_count, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), details_json, reporter_email, authority_email))
+        INSERT INTO complaints (reporter_name, road_name, pothole_count, total_cost, timestamp, details_json, reporter_email, authority_email, priority)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (reporter_name, road_name, pothole_count, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), details_json, reporter_email, authority_email, priority))
     conn.commit()
     conn.close()
 
