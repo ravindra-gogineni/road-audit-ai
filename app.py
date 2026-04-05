@@ -356,7 +356,14 @@ def render_login_page():
         password = st.text_input("Password", type="password")
         submit = st.form_submit_button("Login", use_container_width=True)
         
-        st.error("Invalid Username or Password")
+        if submit:
+            if username == "admin" and password == "admin123":
+                st.session_state.admin_logged_in = True
+                st.session_state.show_login = False
+                st.success("Login Successful!")
+                st.rerun()
+            else:
+                st.error("Invalid Username or Password")
 
 def render_safety_hub_page():
     st.title("🗺️ 3D Community Safety Map")
