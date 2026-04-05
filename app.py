@@ -90,11 +90,15 @@ class RoadAuditState:
         width, height = x2 - x1, y2 - y1
         percent_area = ((width * height) / frame_area) * 100
         
-        # AI-driven cost logic based on pothole pixel density
+        # --- SENSITIVITY CALIBRATION (Finetuned for Dashboard) ---
+        # We lowered these thresholds so that normal potholes show up as Moderate/Critical
         base_cost = 500
-        if percent_area < 2: return "MINOR", int(base_cost + percent_area * 50), (0, 255, 0)
-        elif 2 <= percent_area < 8: return "MODERATE", int(base_cost + percent_area * 150), (255, 165, 0)
-        else: return "CRITICAL", int(base_cost + percent_area * 300), (255, 0, 0)
+        if percent_area < 0.5: 
+            return "MINOR", int(base_cost + percent_area * 500), (16, 185, 129) # Modern Green
+        elif 0.5 <= percent_area < 3.0: 
+            return "MODERATE", int(base_cost + percent_area * 1500), (245, 158, 11) # Modern Orange
+        else: 
+            return "CRITICAL", int(base_cost + percent_area * 5000), (239, 68, 68) # Modern Red
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
@@ -329,12 +333,19 @@ else:
             st.error("⚠️ Error opening video source. Check file format or camera access.")
             st.session_state.is_running = False
         else:
-            session_gps = "GPS Unavailable"
+            # --- SMART GPS LOGIC ---
+            # Try to get live location, otherwise use the Road Name from the sidebar
+            try:
+                latlng = geocoder.ip('me').latlng
+                session_gps = f"{latlng[0]:.5f}, {latlng[1]:.5f}" if latlng else input_road if input_road else "📍 Hyderabad, IN"
+            except:
+                session_gps = input_road if input_road else "📍 Hyderabad, IN"
+            
             frame_count = 0 
             while cap.isOpened() and st.session_state.is_running:
                 ret, frame = cap.read()
                 if not ret:
-                    st.success("Video processing complete!")
+                    st.success("Video processing complete! You can now send the report.")
                     st.session_state.is_running = False
                     break
             
