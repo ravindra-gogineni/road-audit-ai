@@ -21,7 +21,10 @@ def init_db():
             reporter_email TEXT,
             authority_email TEXT,
             priority TEXT DEFAULT 'Normal',
-            forwarded_at TEXT DEFAULT NULL
+            forwarded_at TEXT DEFAULT NULL,
+            lat REAL DEFAULT 15.5,
+            lng REAL DEFAULT 80.0,
+            is_blackspot INTEGER DEFAULT 0
         )
     ''')
     # Backup: Add columns if they were missing (Schema Evolution)
@@ -29,7 +32,10 @@ def init_db():
         ("reporter_email", "TEXT"),
         ("authority_email", "TEXT"),
         ("priority", "TEXT DEFAULT 'Normal'"),
-        ("forwarded_at", "TEXT DEFAULT NULL")
+        ("forwarded_at", "TEXT DEFAULT NULL"),
+        ("lat", "REAL DEFAULT 15.5"),
+        ("lng", "REAL DEFAULT 80.0"),
+        ("is_blackspot", "INTEGER DEFAULT 0")
     ]
     for col_name, col_type in columns_to_add:
         try:
@@ -39,14 +45,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_complaint(reporter_name, road_name, pothole_count, total_cost, detections, reporter_email, authority_email, priority):
+def add_complaint(reporter_name, road_name, pothole_count, total_cost, detections, reporter_email, authority_email, priority, lat=15.5, lng=80.0):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     details_json = json.dumps(detections)
     cursor.execute('''
-        INSERT INTO complaints (reporter_name, road_name, pothole_count, total_cost, timestamp, details_json, reporter_email, authority_email, priority)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (reporter_name, road_name, pothole_count, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), details_json, reporter_email, authority_email, priority))
+        INSERT INTO complaints (reporter_name, road_name, pothole_count, total_cost, timestamp, details_json, reporter_email, authority_email, priority, lat, lng)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (reporter_name, road_name, pothole_count, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), details_json, reporter_email, authority_email, priority, lat, lng))
     conn.commit()
     conn.close()
 
@@ -58,9 +64,12 @@ def get_all_complaints():
     conn.close()
     return rows
 
-def update_complaint(complaint_id, status, start_in_days, forwarded_at=None):
+def update_complaint(complaint_id, status, start_in_days, forwarded_at=None, is_blackspot=None):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    if is_blackspot is not None:
+        cursor.execute("UPDATE complaints SET is_blackspot = ? WHERE id = ?", (is_blackspot, complaint_id))
+    
     if forwarded_at:
         cursor.execute('''
             UPDATE complaints 

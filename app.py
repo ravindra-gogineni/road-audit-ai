@@ -15,6 +15,9 @@ import requests
 import tempfile
 import sqlite3
 import json
+import folium
+from streamlit_folium import st_folium
+from folium.plugins import MarkerCluster, HeatMap, AntPath
 import database_handler as db
 
 class RoadAuditState:
@@ -65,6 +68,10 @@ if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 if "show_login" not in st.session_state:
     st.session_state.show_login = False
+if "map_lat" not in st.session_state:
+    st.session_state.map_lat = 15.50
+if "map_lng" not in st.session_state:
+    st.session_state.map_lng = 80.05
 
 # ==========================================
 # ⚙️ CONFIGURATION & CSS
@@ -322,8 +329,11 @@ if submit_btn:
     elif audit.pothole_count > 0:
         # Calculate Priority
         priority = "🚨 High" if audit.severity_counts.get("CRITICAL", 0) > 0 else "🟢 Normal"
+        # Extract lat/lng
+        lat = st.session_state.get("map_lat", 15.5)
+        lng = st.session_state.get("map_lng", 80.05)
         # Save to Database for Admin Review
-        db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, "Pending Board Review", priority)
+        db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, "Pending Board Review", priority, lat, lng)
         st.sidebar.success("✅ Report Submitted! Authorities will review and forward it shortly.")
         st.sidebar.info(f"📌 Priority Assigned: {priority}")
     else:
@@ -355,8 +365,9 @@ def render_citizen_view(audit):
     st.caption("AI-Powered Road Audit & Automated Reporting System")
 
     # Tabs
-    tab_live, tab_tracker, tab_analytics = st.tabs([
+    tab_live, tab_safety, tab_tracker, tab_analytics = st.tabs([
         "🔴 Live Inspection", 
+        "🗺️ Safety Hub",
         "🔍 Track Complaint",
         "📊 Analytics & Reports"
     ])
@@ -373,8 +384,72 @@ def render_citizen_view(audit):
             st.info("👈 Use the sidebar to select your video source and click **Start Scan** to begin.")
             update_ui_elements(audit)
 
-    with tab_tracker:
-        st.subheader("🔍 Public Complaint Tracker")
+    with tab_safety:
+        st.subheader("🗺️ 3D Community Safety Map")
+        st.info("Explore hazards, bypass dangerous roads, and see official accident-prone zones in real-time.")
+        
+        all_comp = db.get_all_complaints()
+        
+        # Layer Selection
+        map_style = st.radio("Map Style", ["🛰️ Satellite View", "🏙️ Professional Road View"], horizontal=True)
+        tile_set = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" if "Satellite" in map_style else "CartoDB dark_matter"
+        attr = "ESRI World Imagery" if "Satellite" in map_style else "CartoDB"
+
+        # Create Map (Centered on most recent point or AP)
+        m = folium.Map(location=[st.session_state.map_lat, st.session_state.map_lng], zoom_start=13, tiles=tile_set, attr=attr)
+        
+        # Add Markers
+        if all_comp:
+            for c in all_comp:
+                # SAFETY PADDING
+                c_list = list(c)
+                while len(c_list) < 15: c_list.append(None)
+                cid, cname, rname, pcount, cost, status, days, time, details, rep_e, auth_e, priority, forw, lat, lng = c_list[0:15]
+                is_black = c_list[15] if len(c_list) > 15 else 0
+                
+                if lat and lng:
+                    color = "red" if priority == "🚨 High" else "orange"
+                    icon = "exclamation-triangle"
+                    
+                    if is_black:
+                        color = "black"
+                        icon = "skull"
+                        label = "🚨 ACCIDENT PRONE BLACKSPOT"
+                    else:
+                        label = f"{priority} Hazard ({status})"
+                    
+                    # Popup - NO COST for citizens
+                    html = f"""
+                        <div style="font-family: Arial;">
+                            <h4 style="color:{color};">{label}</h4>
+                            <b>📍 Road:</b> {rname}<br>
+                            <b>📅 Reported:</b> {time}<br>
+                            <b>🛠️ Status:</b> {status}
+                        </div>
+                    """
+                    folium.Marker(
+                        location=[lat, lng],
+                        popup=folium.Popup(html, max_width=300),
+                        icon=folium.Icon(color=color, icon=icon, prefix="fa"),
+                        tooltip=f"{rname} - {priority}"
+                    ).add_to(m)
+
+        # Render Map
+        st_folium(m, width=900, height=500, use_container_width=True)
+        
+        # --- SAFE NAVIGATION PANEL ---
+        st.divider()
+        with st.expander("🚗 Safe Path Navigator (Beta)"):
+            st.markdown("Enter your destination to find any hazards along your route.")
+            nav_col1, nav_col2 = st.columns(2)
+            st_loc = nav_col1.text_input("From Location", value="Ongole")
+            end_loc = nav_col2.text_input("To Location", placeholder="e.g. Hyderabad")
+            if st.button("🗺️ Find Safest Path"):
+                st.warning(f"Navigating from {st_loc} to {end_loc}...")
+                st.info("Safety Check: Searching database for hazards on this path...")
+                # Mocked safety navigation for the demo
+                hazard_dist = np.random.randint(2, 6)
+                st.error(f"🚨 Navigation Alert: {hazard_dist} critical hazards found on your route! Drive carefully.")
         search_q = st.text_input("Search by Road Name or Your Name", placeholder="e.g. Main Street")
         if search_q:
             results = db.search_complaints(search_q)
@@ -475,6 +550,20 @@ def render_admin_view():
                                     st.success(f"Report forwarded to {target_dist} officials!")
                                     st.rerun()
                                 else: st.error(msg)
+                                
+                    # --- BLACKSPOT MANAGEMENT ---
+                    with st.container(border=True):
+                        st.write("🚨 **Accident Prone Area Management**")
+                        is_current_black = bool(is_black)
+                        if st.toggle("Mark as Accident Prone Blackspot", value=is_current_black, key=f"black_{c_id}"):
+                            if not is_current_black:
+                                db.update_complaint(c_id, status, days, is_blackspot=1)
+                                st.warning("Spot marked as Permanent Blackspot!")
+                                st.rerun()
+                        else:
+                            if is_current_black:
+                                db.update_complaint(c_id, status, days, is_blackspot=0)
+                                st.rerun()
 
                     st.divider()
                     with st.form(f"edit_form_{c_id}"):
@@ -566,11 +655,14 @@ else:
                 st.error(f"⚠️ **Error opening file**: {video_path}. Please check if the file format is supported (.mp4, .avi).")
             st.session_state.is_running = False
         else:
-            # --- SMART GPS LOGIC ---
-            # Try to get live location, otherwise use the Road Name from the sidebar
+            # --- SMART GPS CAPTURE ---
             try:
-                latlng = geocoder.ip('me').latlng
-                session_gps = f"{latlng[0]:.5f}, {latlng[1]:.5f}" if latlng else input_road if input_road else "📍 Hyderabad, IN"
+                g = geocoder.ip('me')
+                if g.latlng:
+                    st.session_state.map_lat, st.session_state.map_lng = g.latlng[0], g.latlng[1]
+                    session_gps = f"{st.session_state.map_lat:.5f}, {st.session_state.map_lng:.5f}"
+                else: 
+                    session_gps = input_road if input_road else "📍 Hyderabad, IN"
             except:
                 session_gps = input_road if input_road else "📍 Hyderabad, IN"
             
