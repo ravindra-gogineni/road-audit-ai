@@ -14,6 +14,7 @@ import base64
 import requests
 import tempfile
 import sqlite3
+import json
 import database_handler as db
 
 # Initialize Database
@@ -224,15 +225,7 @@ st.sidebar.subheader("📤 Citizen Submission")
 input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
 input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
 input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Ongole Main Road")
-submit_btn = st.sidebar.button("📤 Submit for Official Review", use_container_width=True, type="primary")
-
-with st.sidebar.expander("🔐 Admin Access"):
-    admin_pass = st.text_input("Enter Admin Password", type="password")
-    is_admin = admin_pass == "admin123"
-    if admin_pass and not is_admin:
-        st.error("❌ Invalid Password")
-    elif is_admin:
-        st.success("✅ Admin Access Granted")
+submit_btn = st.sidebar.button("📤 Submit Report", use_container_width=True, type="primary")
 
 # Initialize Session State
 if "audit_state" not in st.session_state:
