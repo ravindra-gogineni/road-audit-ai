@@ -126,52 +126,26 @@ def apply_premium_style():
             color: #10b981; font-size: 2.8rem; font-weight: 800; margin-top: 5px;
         }}
         
-        /* Apple-Style Full Width Footer - THE ULTIMATE BUILD */
-        .footer-invitation, .footer-grid, .footer-bottom {{
-            width: 100vw !important;
-            position: relative !important;
-            left: 50% !important;
-            right: 50% !important;
-            margin-left: -50vw !important;
-            margin-right: -50vw !important;
-            z-index: 99999 !important; /* Spans over sidebar area */
-        }}
-        
-        .footer-invitation {{
-            background: #0f172a;
-            padding: 100px 20px 60px 20px;
-            text-align: center;
+        /* Clean Premium Footer */
+        .footer {{
+            margin-top: 50px;
+            padding: 30px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
         }}
-        .footer-invite-text {{ font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 20px; }}
-        .footer-email {{ font-size: 3rem; font-weight: 400; color: #fbbf24 !important; text-decoration: none; }}
-        
-        .footer-grid {{
-            background: #020617;
-            padding: 80px 10%;
-            display: flex; justify-content: space-between; gap: 40px;
-            flex-wrap: wrap;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        .footer-links {{
+            display: flex; justify-content: center; gap: 30px; margin-top: 15px;
         }}
-        .footer-col {{ flex: 1; min-width: 200px; }}
-        .footer-col-title {{ font-size: 0.75rem; font-weight: 700; color: #64748b; letter-spacing: 2.5px; margin-bottom: 25px; text-transform: uppercase; }}
-        .footer-col-text {{ font-size: 0.9rem; color: #94a3b8; line-height: 2; }}
-        
-        .footer-bottom {{
-            background: #000;
-            padding: 30px 10%;
-            display: flex; justify-content: space-between; align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 0.8rem; color: #475569;
+        .footer-links a {{
+            color: #10b981; text-decoration: none; font-weight: 600; transition: 0.3s;
         }}
-        
-        /* Remove Streamlit default white space and padding */
-        div.block-container {{ padding-bottom: 0rem !important; padding-top: 5rem !important; }}
-        footer {{ visibility: hidden; }}
-        #MainMenu {{ visibility: hidden; }}
+        .footer-links a:hover {{ color: #34d399; text-shadow: 0 0 10px #10b981; }}
         
         /* Sidebar Padding fix */
-        [data-testid="stSidebar"] {{ padding-bottom: 150px; }}
+        [data-testid="stSidebar"] {{ padding-bottom: 50px; }}
+        div.block-container {{ padding-bottom: 3rem !important; }}
         .footer-col {{ min-width: 200px; }}
         .footer-col-title {{ font-size: 0.85rem; font-weight: 700; color: #fff; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }}
         .footer-col-text {{ font-size: 0.9rem; color: #94a3b8; line-height: 1.8; }}
@@ -206,42 +180,12 @@ def apply_premium_style():
 
 def render_footer():
     st.markdown(f"""
-    <div class="footer-invitation">
-        <div class="footer-invite-text">Interested to work with us? Drop us a line</div>
-        <a href="mailto:hello@andhraroad.in" class="footer-email">hello@andhraroad.in</a>
-    </div>
-    <div class="footer-grid">
-        <div class="footer-col">
-            <div style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid #fbbf24; display: flex; align-items: center; justify-content: center; color: #fbbf24; font-weight: 700; font-size: 1.2rem; margin-bottom:20px;">A</div>
-            <div class="footer-col-text">Building a safer future for Andhra Pradesh through AI and Real-time data.</div>
-        </div>
-        <div class="footer-col">
-            <div class="footer-col-title">ANDHRA PRADESH UNIT</div>
-            <div class="footer-col-text">
-                4243 Woodland Road<br>Amaravati, AP 522501<br>
-                Tel. +91 866 245 2645
-            </div>
-        </div>
-        <div class="footer-col">
-            <div class="footer-col-title">REGIONAL HUB</div>
-            <div class="footer-col-text">
-                885 Oakwood Avenue<br>Ongole, AP 523001<br>
-                Tel. +91 8592 660 0744
-            </div>
-        </div>
-        <div class="footer-col">
-            <div class="footer-col-title">CONNECT</div>
-            <div class="footer-col-text">
-                <a href="{GITHUB_URL}" target="_blank" style="color: #94a3b8; text-decoration: none;">GitHub Source Code</a><br>
-                <a href="{LINKEDIN_URL}" target="_blank" style="color: #94a3b8; text-decoration: none;">LinkedIn Profile</a><br>
-                jobs@andhraroad.in
-            </div>
-        </div>
-    </div>
-    <div class="footer-bottom">
+    <div class="footer">
         <div>© 2026 {PROJECT_TITLE}. All Rights Reserved.</div>
-        <div>
-            Privacy Policy &nbsp;&nbsp;|&nbsp;&nbsp; Terms of Service &nbsp;&nbsp;|&nbsp;&nbsp; Accessibility
+        <div class="footer-links">
+            <a href="{GITHUB_URL}" target="_blank">💻 GitHub Source Code</a>
+            <a href="{LINKEDIN_URL}" target="_blank" style="margin-left:20px;">🏢 Developer LinkedIn</a>
+            <a href="mailto:hello@andhraroad.in" style="margin-left:20px;">📥 Contact Us</a>
         </div>
     </div>
     """, unsafe_allow_html=True)
