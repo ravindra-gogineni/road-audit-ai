@@ -327,18 +327,22 @@ else:
         except: 
             session_gps = "GPS Unavailable"
             
+        frame_count = 0 
         while cap.isOpened() and st.session_state.is_running:
             ret, frame = cap.read()
             if not ret:
                 st.success("Video processing complete!")
                 st.session_state.is_running = False
                 break
-                
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            frame_count += 1
+            
+            # AI logic runs every frame to ensure detections are never missed
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_area = frame.shape[0] * frame.shape[1]
             
             # YOLO Tracking
-            results = model.track(frame, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
+            results = model.track(frame_rgb, persist=True, tracker="botsort.yaml", conf=0.4, verbose=False)
             
             if results[0].boxes is not None and results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
@@ -363,15 +367,20 @@ else:
                                 "Location": session_gps
                             })
                     
-                    # Draw boxes
-                    cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), color, 3)
-                    cv2.putText(frame, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
+                    # Draw boxes on the RGB frame for display
+                    cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
+                    cv2.putText(frame_rgb, f"ID:{track_id} {severity}", (box[0], box[1]-10), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            # Update live video
-            video_placeholder.image(frame, channels="RGB", use_container_width=True)
+            # --- PERFORMANCE OPTIMIZATION (CLOUD ONLY) ---
+            # 1. Only update the UI and Video every few frames to reduce lag.
+            if frame_count % 3 == 0:
+                video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
             
-            # Update live stats
-            update_ui_elements(audit)
+            if frame_count % 10 == 0:
+                update_ui_elements(audit)
+                
+            # 2. Add a tiny sleep to let the browser catch up with incoming data.
+            time.sleep(0.01)
                 
         cap.release()
