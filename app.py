@@ -13,6 +13,10 @@ from fpdf import FPDF
 import base64
 import requests
 import tempfile
+import database_handler as db
+
+# Initialize Database
+db.init_db()
 
 # ==========================================
 # ⚙️ CONFIGURATION & CSS
@@ -191,6 +195,15 @@ input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Main 
 input_email = st.sidebar.text_input("Authority Email", placeholder="pwd@gov.in")
 send_btn = st.sidebar.button("📧 Send Report to Authority", use_container_width=True)
 
+st.sidebar.divider()
+st.sidebar.subheader("🔒 Admin Access")
+admin_pass = st.sidebar.text_input("Enter Admin Password", type="password")
+is_admin = admin_pass == "admin123"
+if admin_pass and not is_admin:
+    st.sidebar.error("❌ Invalid Password")
+elif is_admin:
+    st.sidebar.success("✅ Admin Access Granted")
+
 # Initialize Session State
 if "audit_state" not in st.session_state:
     st.session_state.audit_state = RoadAuditState()
@@ -226,7 +239,11 @@ if send_btn:
             pdf_path = create_pdf(audit.detections, audit.total_cost, audit.pothole_count, input_name, input_road)
             success, msg = send_brevo_email(pdf_path, audit.total_cost, input_email, input_name)
             os.remove(pdf_path) # cleanup
-        if success: st.sidebar.success(msg)
+        if success: 
+            st.sidebar.success(msg)
+            # Save to Database for tracking
+            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections)
+            st.sidebar.info("📌 Complaint saved to tracking system.")
         else: st.sidebar.error(msg)
     elif not input_email:
         st.sidebar.warning("Please enter the Authority Email first.")
@@ -241,7 +258,13 @@ st.title("🛣️ Citizen Road Reporter Dashboard")
 st.caption("AI-Powered Road Audit & Automated Reporting System")
 
 # Responsive Main Layout using Tabs
-tab_live, tab_analytics = st.tabs(["🔴 Live Inspection", "📊 Analytics & Reports"])
+# Responsive Main Layout using Tabs
+tab_live, tab_analytics, tab_tracker, tab_admin = st.tabs([
+    "🔴 Live Inspection", 
+    "📊 Analytics & Reports", 
+    "🔍 Track Complaint", 
+    "🏛️ Authority Portal"
+])
 
 # Data Storage Elements (Placed once to be accessed inside tabs)
 metrics_placeholder = st.empty()
@@ -284,6 +307,13 @@ with tab_analytics:
             
         with m_col2:
             # Metrics will be injected here via the placeholder
+            all_comp = db.get_all_complaints()
+            if all_comp:
+                st.markdown("### Public Status Summary")
+                # Group by status
+                df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details"])
+                status_counts = df_comp["status"].value_counts()
+                st.write(status_counts)
             pass
             
         st.divider()
@@ -294,6 +324,58 @@ with tab_analytics:
         with st.expander("View Full Detection Log", expanded=True):
             # The placeholder 'record_table' will be populated by the loop
             pass
+
+with tab_tracker:
+    st.subheader("🔍 Public Complaint Tracker")
+    st.markdown("Citizens can track the status of their reported road issues here.")
+    search_q = st.text_input("Search by Road Name or Your Name", placeholder="e.g. Main Street")
+    
+    if search_q:
+        results = db.search_complaints(search_q)
+        if results:
+            for res in results:
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details = res
+                with st.expander(f"📌 {r_name} (Reported by {c_name}) - {tstamp}"):
+                    col_a, col_b = st.columns(2)
+                    col_a.metric("Status", status)
+                    col_b.metric("Est. Start", f"{start_days} days" if start_days else "Not Scheduled")
+                    st.write(f"**Potholes Detected:** {p_count} | **Est. Repair Cost:** ₹{t_cost:,}")
+        else:
+            st.warning("No complaints found for that search query.")
+    else:
+        st.info("Enter a name or road to search for existing reports.")
+
+with tab_admin:
+    st.subheader("🏛️ Government Authority Portal")
+    if not is_admin:
+        st.warning("🔒 This section is restricted to Authorized Personnel only. Please enter the admin password in the sidebar to access.")
+    else:
+        st.success("Welcome, Administrator. You can now manage all reported road damages.")
+        all_complaints = db.get_all_complaints()
+        
+        if not all_complaints:
+            st.info("No complaints have been submitted yet.")
+        else:
+            for comp in all_complaints:
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details = comp
+                with st.expander(f"ID #{c_id}: {r_name} - {status} ({tstamp})"):
+                    # Edit Form
+                    with st.form(f"edit_form_{c_id}"):
+                        new_status = st.selectbox("Status", ["Pending", "Scheduled", "Work Started", "Completed"], 
+                                                 index=["Pending", "Scheduled", "Work Started", "Completed"].index(status))
+                        new_start = st.number_input("Starts in (Days)", value=start_days if start_days else 0, min_value=0)
+                        
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.form_submit_button("💾 Update Status"):
+                                db.update_complaint(c_id, new_status, new_start)
+                                st.success(f"Complaint #{c_id} updated!")
+                                st.rerun()
+                        with btn_col2:
+                            if st.form_submit_button("🗑️ Delete Record"):
+                                db.delete_complaint(c_id)
+                                st.error(f"Complaint #{c_id} deleted!")
+                                st.rerun()
 
 def update_ui_elements(audit):
     # Metrics
