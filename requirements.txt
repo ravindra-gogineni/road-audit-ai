@@ -10,4 +10,4 @@ geocoder
 folium
 streamlit-folium
 branca
-# Built-in libraries (json, os, etc.) removed to prevent installation errors
+streamlit-geolocation

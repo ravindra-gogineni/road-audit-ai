@@ -18,6 +18,7 @@ import json
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster, HeatMap, AntPath
+from streamlit_geolocation import streamlit_geolocation
 import database_handler as db
 
 class RoadAuditState:
@@ -286,6 +287,17 @@ else:
     # No scanner buttons for admins
     start_btn = stop_btn = submit_btn = False # placeholder buttons to avoid name errors
     video_path = None
+
+# --- LIVE GPS CAPTURE ---
+with st.sidebar:
+    st.subheader("📍 Precise Location")
+    location = streamlit_geolocation()
+    if location and location['latitude']:
+        st.session_state.map_lat = location['latitude']
+        st.session_state.map_lng = location['longitude']
+        st.success(f"GPS Connected: {st.session_state.map_lat:.4f}, {st.session_state.map_lng:.4f}")
+    else:
+        st.warning("Please click 'Allow' or check GPS if inaccurate.")
 
 # --- MAIN NAVIGATION ---
 st.sidebar.divider()
