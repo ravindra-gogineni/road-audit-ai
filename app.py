@@ -216,8 +216,10 @@ def create_pdf(detections, total_cost, count, reporter_name, road_name):
     
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, f"Total Potholes Detected: {count}", ln=True)
-    pdf.set_text_color(255, 0, 0)
     pdf.cell(0, 10, f"ESTIMATED REPAIR COST: Rs. {total_cost:,}", ln=True)
+    if detections and detections[0].get('Location'):
+         pdf.set_font("Arial", size=10)
+         pdf.cell(0, 10, f"Precise GPS: {detections[0]['Location']}", ln=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(10)
     
@@ -530,6 +532,10 @@ def render_admin_view():
                     
                     col_info1, col_info2, col_info3 = st.columns(3)
                     col_info1.metric("💰 Total Estimate", f"₹{t_cost:,}")
+                    col_info1.write(f"**Coordinates:** {lat}, {lng}")
+                    if lat and lng:
+                        st.link_button("🌐 View on Google Maps", f"https://www.google.com/maps/search/?api=1&query={lat},{lng}")
+                    
                     col_info2.write(f"**Reporter:** {c_name}")
                     col_info2.write(f"**Contact:** {rep_email}")
                     col_info3.write(f"**Current Route:** {current_auth}")
@@ -568,7 +574,7 @@ def render_admin_view():
                                 
                                 if success:
                                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-                                    db.update_complaint(c_id, "Scheduled", 7, current_time) # Auto-schedule for 7 days
+                                    db.update_complaint(c_id, "Scheduled", 7, forwarded_at=current_time) # Fixed: Correct kwarg
                                     st.success(f"Report forwarded to {target_dist} officials!")
                                     st.rerun()
                                 else: st.error(msg)
@@ -678,15 +684,29 @@ else:
             st.session_state.is_running = False
         else:
             # --- SMART GPS CAPTURE ---
-            try:
-                g = geocoder.ip('me')
-                if g.latlng:
-                    st.session_state.map_lat, st.session_state.map_lng = g.latlng[0], g.latlng[1]
-                    session_gps = f"{st.session_state.map_lat:.5f}, {st.session_state.map_lng:.5f}"
-                else: 
+            # If using an UPLOADED video, prefer the 'Road Name' location over the browser GPS
+            if source_type == "Upload Video" and input_road:
+                try:
+                    g = geocoder.osm(input_road) # Search for the road name specifically
+                    if g.latlng:
+                        st.session_state.map_lat, st.session_state.map_lng = g.latlng[0], g.latlng[1]
+                        session_gps = f"📍 {input_road} ({st.session_state.map_lat:.4f}, {st.session_state.map_lng:.4f})"
+                    else:
+                        session_gps = input_road
+                except:
+                    session_gps = input_road
+            else:
+                try:
+                    g = geocoder.ip('me')
+                    if g.latlng:
+                        # Use browser GPS if available, else session default
+                        lat_val = st.session_state.get('map_lat', g.latlng[0])
+                        lng_val = st.session_state.get('map_lng', g.latlng[1])
+                        session_gps = f"{lat_val:.5f}, {lng_val:.5f}"
+                    else: 
+                        session_gps = input_road if input_road else "📍 Hyderabad, IN"
+                except:
                     session_gps = input_road if input_road else "📍 Hyderabad, IN"
-            except:
-                session_gps = input_road if input_road else "📍 Hyderabad, IN"
             
             frame_count = 0 
             while cap.isOpened() and st.session_state.is_running:
