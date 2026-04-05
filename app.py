@@ -201,31 +201,38 @@ def send_brevo_email(report_name, total_cost, target_email, reporter_name):
 # 🎛️ SIDEBAR / SAAS CONTROLS
 # ==========================================
 
-st.sidebar.title("📸 Input Source")
-source_type = st.sidebar.radio("Location", ["Demo Video", "Upload Video", "Live Camera"], index=0)
+if not st.session_state.admin_logged_in:
+    st.sidebar.title("📸 Input Source")
+    source_type = st.sidebar.radio("Location", ["Demo Video", "Upload Video", "Live Camera"], index=0)
 
-video_path = None
-if source_type == "Demo Video":
-    video_path = DEFAULT_VIDEO
-elif source_type == "Upload Video":
-    uploaded_file = st.sidebar.file_uploader("Upload an MP4, AVI, or MOV file", type=["mp4", "avi", "mov"])
-    if uploaded_file:
-        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        tfile.write(uploaded_file.read())
-        video_path = tfile.name
-elif source_type == "Live Camera":
-    video_path = 0
+    video_path = None
+    if source_type == "Demo Video":
+        video_path = DEFAULT_VIDEO
+    elif source_type == "Upload Video":
+        uploaded_file = st.sidebar.file_uploader("Upload an MP4, AVI, or MOV file", type=["mp4", "avi", "mov"])
+        if uploaded_file:
+            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            tfile.write(uploaded_file.read())
+            video_path = tfile.name
+    elif source_type == "Live Camera":
+        video_path = 0
 
-st.sidebar.divider()
-start_btn = st.sidebar.button("🚀 Start Scan", use_container_width=True, type="primary")
-stop_btn = st.sidebar.button("🛑 Stop Scan", use_container_width=True)
+    st.sidebar.divider()
+    start_btn = st.sidebar.button("🚀 Start Scan", use_container_width=True, type="primary")
+    stop_btn = st.sidebar.button("🛑 Stop Scan", use_container_width=True)
 
-st.sidebar.divider()
-st.sidebar.subheader("📤 Citizen Submission")
-input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
-input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
-input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Ongole Main Road")
-submit_btn = st.sidebar.button("📤 Submit Report", use_container_width=True, type="primary")
+    st.sidebar.divider()
+    st.sidebar.subheader("📤 Citizen Submission")
+    input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
+    input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
+    input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Ongole Main Road")
+    submit_btn = st.sidebar.button("📤 Submit Report", use_container_width=True, type="primary")
+else:
+    st.sidebar.title("🏛️ Admin Dashboard")
+    st.sidebar.info("You are currently in **Management Mode**. Review and route citizen complaints below.")
+    # No scanner buttons for admins
+    start_btn = stop_btn = submit_btn = False # placeholder buttons to avoid name errors
+    video_path = None
 
 # Initialize Session State
 if "audit_state" not in st.session_state:
