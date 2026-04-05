@@ -118,15 +118,38 @@ def apply_premium_style():
             color: #10b981; font-size: 2.8rem; font-weight: 800; margin-top: 5px;
         }}
         
-        /* Universal Footer */
-        .footer {{
-            margin-top: 80px; padding: 40px 20px; 
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center; color: #94a3b8; font-size: 0.85rem;
+        /* Premium Universal Footer - REBUILT TO MATCH SCREENSHOT */
+        .footer-invitation {{
+            background: #0f172a;
+            padding: 80px 20px 40px 20px;
+            text-align: center;
+            border-top: 2px solid rgba(255, 255, 255, 0.05);
         }}
-        .footer-links {{ display: flex; justify-content: center; gap: 30px; margin-top: 15px; }}
-        .footer-links a {{ color: #10b981; text-decoration: none; font-weight: 600; transition: 0.3s; }}
-        .footer-links a:hover {{ color: #34d399; text-shadow: 0 0 10px #10b981; }}
+        .footer-invite-text {{ font-size: 2.2rem; font-weight: 600; color: #fff; margin-bottom: 20px; }}
+        .footer-email {{ font-size: 2.8rem; font-weight: 400; color: #fbbf24; text-decoration: none; }}
+        
+        .footer-grid {{
+            background: #020617;
+            padding: 60px 40px;
+            display: flex; justify-content: center; gap: 80px;
+            flex-wrap: wrap;
+        }}
+        .footer-col {{ min-width: 200px; }}
+        .footer-col-title {{ font-size: 0.85rem; font-weight: 700; color: #fff; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }}
+        .footer-col-text {{ font-size: 0.9rem; color: #94a3b8; line-height: 1.8; }}
+        .footer-logo-circle {{
+            width: 45px; height: 45px; border-radius: 50%; border: 2px solid #fbbf24;
+            display: flex; align-items: center; justify-content: center;
+            color: #fbbf24; font-weight: 700; font-size: 1.2rem;
+        }}
+        
+        /* Mobile Footer Overrides */
+        @media (max-width: 768px) {{
+            .footer-invite-text {{ font-size: 1.5rem; }}
+            .footer-email {{ font-size: 1.6rem; }}
+            .footer-grid {{ gap: 40px; text-align: center; }}
+            .footer-logo-circle {{ margin: 0 auto 20px auto; }}
+        }}
         
         /* Fix Streamlit Overrides */
         [data-testid="stMetricValue"] {{ display: none; }}
@@ -145,12 +168,35 @@ def apply_premium_style():
 
 def render_footer():
     st.markdown(f"""
-    <div class="footer">
-        <div>© 2026 {PROJECT_TITLE}. All Rights Reserved.</div>
-        <div class="footer-links">
-            <a href="{GITHUB_URL}" target="_blank">💻 GitHub Source</a>
-            <a href="{LINKEDIN_URL}" target="_blank">🏢 Developer LinkedIn</a>
-            <a href="mailto:contact@{PROJECT_TITLE.lower().replace(' ', '')}.in">📥 Contact Us</a>
+    <div class="footer-invitation">
+        <div class="footer-invite-text">Interested to work with us? Drop us a line</div>
+        <a href="mailto:{LINKEDIN_URL}" class="footer-email">hello@andhraroad.in</a>
+    </div>
+    <div class="footer-grid">
+        <div class="footer-col">
+            <div class="footer-logo-circle">A</div>
+        </div>
+        <div class="footer-col">
+            <div class="footer-col-title">ANDHRA PRADESH UNIT</div>
+            <div class="footer-col-text">
+                4243 Woodland Road, Amaravati, AP<br>
+                522501. Tel. +91 866 245 2645
+            </div>
+        </div>
+        <div class="footer-col">
+            <div class="footer-col-title">REGIONAL HUB</div>
+            <div class="footer-col-text">
+                885 Oakwood Avenue, Ongole, AP<br>
+                523001. Tel. +91 8592 660 0744
+            </div>
+        </div>
+        <div class="footer-col">
+            <div class="footer-col-title">CONNECT</div>
+            <div class="footer-col-text">
+                <a href="{GITHUB_URL}" style="color: #94a3b8; text-decoration: none;">GitHub Source</a><br>
+                <a href="{LINKEDIN_URL}" style="color: #94a3b8; text-decoration: none;">LinkedIn Profile</a><br>
+                jobs@andhraroad.in
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
