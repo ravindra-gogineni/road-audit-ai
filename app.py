@@ -90,15 +90,15 @@ class RoadAuditState:
         width, height = x2 - x1, y2 - y1
         percent_area = ((width * height) / frame_area) * 100
         
-        # --- FINAL "PERFECT DEMO" CALIBRATION ---
-        # Balanced thresholds to prevent too many "Critical" alerts while staying accurate
-        base_cost = 500
+        # --- FINAL "PERFECT DEMO" CALIBRATION (REDUCED COSTS) ---
+        # Adjusted to keep total repair bills around 15k-25k for the demo video.
+        base_cost = 200
         if percent_area < 1.0: 
-            return "MINOR", int(base_cost + percent_area * 500), (16, 185, 129) # Green
+            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
         elif 1.0 <= percent_area < 5.0: 
-            return "MODERATE", int(base_cost + percent_area * 1500), (245, 158, 11) # Orange
+            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
         else: 
-            return "CRITICAL", int(base_cost + percent_area * 5000), (239, 68, 68) # Red
+            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
@@ -400,7 +400,5 @@ else:
                 
                 if frame_count % 15 == 0:
                     update_ui_elements(audit)
-                    
-                time.sleep(0.01)
                     
             cap.release()
