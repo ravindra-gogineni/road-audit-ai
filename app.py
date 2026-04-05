@@ -191,6 +191,7 @@ stop_btn = st.sidebar.button("🛑 Stop Scan", use_container_width=True)
 st.sidebar.divider()
 st.sidebar.subheader("📝 Dispatch Details")
 input_name = st.sidebar.text_input("Your Name / Organization", placeholder="e.g. John Doe")
+input_reporter_email = st.sidebar.text_input("Your Email (For updates)", placeholder="citizen@mail.com")
 input_road = st.sidebar.text_input("Road Name / Region", placeholder="e.g. Main Street, Sector 4")
 input_email = st.sidebar.text_input("Authority Email", placeholder="pwd@gov.in")
 send_btn = st.sidebar.button("📧 Send Report to Authority", use_container_width=True)
@@ -213,6 +214,26 @@ if "last_chart_count" not in st.session_state:
     st.session_state.last_chart_count = -1
 if "last_source" not in st.session_state:
     st.session_state.last_source = source_type
+if "admin_logged_in" not in st.session_state:
+    st.session_state.admin_logged_in = False
+if "show_login" not in st.session_state:
+    st.session_state.show_login = False
+
+# Sidebar Role Switcher
+st.sidebar.divider()
+if st.session_state.admin_logged_in:
+    st.sidebar.success("Logged in as Admin")
+    if st.sidebar.button("🚪 Logout", use_container_width=True):
+        st.session_state.admin_logged_in = False
+        st.rerun()
+else:
+    if st.sidebar.button("🔒 Admin Portal", use_container_width=True):
+        st.session_state.show_login = True
+        st.rerun()
+    if st.session_state.show_login:
+        if st.sidebar.button("🏠 Back to Citizen View", use_container_width=True):
+            st.session_state.show_login = False
+            st.rerun()
 
 # AUTO-RESET: If they switch from Demo to Upload, clear the screen immediately
 if st.session_state.last_source != source_type:
@@ -242,7 +263,7 @@ if send_btn:
         if success: 
             st.sidebar.success(msg)
             # Save to Database for tracking
-            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections)
+            db.add_complaint(input_name, input_road, audit.pothole_count, audit.total_cost, audit.detections, input_reporter_email, input_email)
             st.sidebar.info("📌 Complaint saved to tracking system.")
         else: st.sidebar.error(msg)
     elif not input_email:
@@ -254,128 +275,140 @@ if send_btn:
 # 🖥️ DASHBOARD UI
 # ==========================================
 
-st.title("🛣️ Citizen Road Reporter Dashboard")
-st.caption("AI-Powered Road Audit & Automated Reporting System")
+def render_login_page():
+    st.title("🔐 Authority Login")
+    st.markdown("Please enter your credentials to access the government portal.")
+    with st.form("admin_login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Login", use_container_width=True)
+        
+        if submit:
+            if username == "admin" and password == "admin123":
+                st.session_state.admin_logged_in = True
+                st.session_state.show_login = False
+                st.success("Login Successful!")
+                st.rerun()
+            else:
+                st.error("Invalid Username or Password")
 
-# Responsive Main Layout using Tabs
-# Responsive Main Layout using Tabs
-tab_live, tab_analytics, tab_tracker, tab_admin = st.tabs([
-    "🔴 Live Inspection", 
-    "📊 Analytics & Reports", 
-    "🔍 Track Complaint", 
-    "🏛️ Authority Portal"
-])
+def render_citizen_view(audit):
+    st.title("🛣️ Citizen Road Reporter Dashboard")
+    st.caption("AI-Powered Road Audit & Automated Reporting System")
 
-# Data Storage Elements (Placed once to be accessed inside tabs)
-metrics_placeholder = st.empty()
-chart_placeholder = st.empty()
-record_table = st.empty()
+    # Tabs
+    tab_live, tab_tracker, tab_analytics = st.tabs([
+        "🔴 Live Inspection", 
+        "🔍 Track Complaint",
+        "📊 Analytics & Reports"
+    ])
 
-with tab_live:
-    live_container = st.container()
-    with live_container:
+    with tab_live:
         st.subheader("Inspection Feed")
+        global video_placeholder, metrics_placeholder, chart_placeholder, record_table
+        metrics_placeholder = st.empty()
         video_placeholder = st.empty()
+        chart_placeholder = st.empty()
+        record_table = st.empty()
+        
         if not st.session_state.is_running:
             st.info("👈 Use the sidebar to select your video source and click **Start Scan** to begin.")
+            update_ui_elements(audit)
 
-with tab_analytics:
-    analytics_container = st.container()
-    with analytics_container:
+    with tab_tracker:
+        st.subheader("🔍 Public Complaint Tracker")
+        search_q = st.text_input("Search by Road Name or Your Name", placeholder="e.g. Main Street")
+        if search_q:
+            results = db.search_complaints(search_q)
+            if results:
+                for res in results:
+                    c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email = res
+                    with st.expander(f"📌 {r_name} (Reported by {c_name}) - {tstamp}"):
+                        col_a, col_b = st.columns(2)
+                        col_a.metric("Status", status)
+                        col_b.metric("Est. Start", f"{start_days} days" if start_days else "Not Scheduled")
+                        st.write(f"**Potholes Detected:** {p_count} | **Est. Repair Cost:** ₹{t_cost:,}")
+                        if st.session_state.admin_logged_in:
+                             st.write(f"**From:** {c_name} ({rep_email}) | **To Authority:** {auth_email}")
+            else: st.warning("No complaints found.")
+        else: st.info("Enter a name or road to search.")
+
+    with tab_analytics:
         st.subheader("Aggregated Data & Reporting")
-        
-        # Grid for Metrics and Export Buttons
-        m_col1, m_col2 = st.columns([1, 1])
-        with m_col1:
-            st.markdown("### Export Tools")
-            export_col1, export_col2 = st.columns(2)
-            with export_col1:
-                if audit.detections:
-                    df = pd.DataFrame(audit.detections)
-                    csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button("📥 Download CSV", data=csv, file_name="potholes.csv", mime="text/csv")
-                else:
-                    st.download_button("📥 Download CSV", data="", disabled=True)
-            with export_col2:
-                if audit.detections:
-                    pdf_file = create_pdf(audit.detections, audit.total_cost, audit.pothole_count, input_name, input_road)
-                    with open(pdf_file, "rb") as f:
-                        st.download_button("📄 Export PDF", f, file_name="road_report.pdf")
-                    os.remove(pdf_file)
-                else:
-                    st.download_button("📄 Export PDF", data="", disabled=True)
-            
-        with m_col2:
-            # Metrics will be injected here via the placeholder
-            all_comp = db.get_all_complaints()
-            if all_comp:
-                st.markdown("### Public Status Summary")
-                # Group by status
-                df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details"])
-                status_counts = df_comp["status"].value_counts()
-                st.write(status_counts)
-            pass
-            
-        st.divider()
-        
-        # Display current audit table
-        st.markdown("### Detailed Pothole Log")
-        # record_table is already an empty placeholder, but we will put it in an expander for mobile
-        with st.expander("View Full Detection Log", expanded=True):
-            # The placeholder 'record_table' will be populated by the loop
-            pass
+        all_comp = db.get_all_complaints()
+        if all_comp:
+            df_comp = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details"])
+            st.markdown("### Public Status Summary")
+            st.dataframe(df_comp[["road", "name", "status", "time"]].tail(5), use_container_width=True)
 
-with tab_tracker:
-    st.subheader("🔍 Public Complaint Tracker")
-    st.markdown("Citizens can track the status of their reported road issues here.")
-    search_q = st.text_input("Search by Road Name or Your Name", placeholder="e.g. Main Street")
+def render_admin_view():
+    st.title("🏛️ Authority Portal")
+    st.success("Authorized: Government Management Mode")
     
-    if search_q:
-        results = db.search_complaints(search_q)
-        if results:
-            for res in results:
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details = res
-                with st.expander(f"📌 {r_name} (Reported by {c_name}) - {tstamp}"):
-                    col_a, col_b = st.columns(2)
-                    col_a.metric("Status", status)
-                    col_b.metric("Est. Start", f"{start_days} days" if start_days else "Not Scheduled")
-                    st.write(f"**Potholes Detected:** {p_count} | **Est. Repair Cost:** ₹{t_cost:,}")
-        else:
-            st.warning("No complaints found for that search query.")
-    else:
-        st.info("Enter a name or road to search for existing reports.")
-
-with tab_admin:
-    st.subheader("🏛️ Government Authority Portal")
-    if not is_admin:
-        st.warning("🔒 This section is restricted to Authorized Personnel only. Please enter the admin password in the sidebar to access.")
-    else:
-        st.success("Welcome, Administrator. You can now manage all reported road damages.")
+    tab_manage, tab_reports = st.tabs(["📋 Manage Complaints", "📊 Advanced Analytics"])
+    
+    with tab_manage:
         all_complaints = db.get_all_complaints()
-        
         if not all_complaints:
             st.info("No complaints have been submitted yet.")
         else:
             for comp in all_complaints:
-                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details = comp
+                # Updated tuple unpacking for the new schema
+                c_id, c_name, r_name, p_count, t_cost, status, start_days, tstamp, details, rep_email, auth_email = comp
                 with st.expander(f"ID #{c_id}: {r_name} - {status} ({tstamp})"):
-                    # Edit Form
+                    st.markdown("### 📋 Complaint Overview")
+                    col_info1, col_info2 = st.columns(2)
+                    col_info1.write(f"**Reporter:** {c_name}")
+                    col_info1.write(f"**Contact:** {rep_email}")
+                    col_info2.write(f"**Sent To:** {auth_email}")
+                    col_info2.write(f"**Timestamp:** {tstamp}")
+                    
+                    st.divider()
+                    st.markdown("### 💰 Itemized Cost Details")
+                    try:
+                        pothole_details_list = json.loads(details)
+                        if pothole_details_list:
+                            detail_df = pd.DataFrame(pothole_details_list)
+                            st.table(detail_df)
+                        else:
+                            st.info("No itemized details captured (Old Record)")
+                    except:
+                        st.info("No itemized details available.")
+
+                    st.divider()
+                    st.markdown("### 🛠️ Administrative Actions")
                     with st.form(f"edit_form_{c_id}"):
-                        new_status = st.selectbox("Status", ["Pending", "Scheduled", "Work Started", "Completed"], 
+                        col1, col2 = st.columns(2)
+                        new_status = col1.selectbox("Status", ["Pending", "Scheduled", "Work Started", "Completed"], 
                                                  index=["Pending", "Scheduled", "Work Started", "Completed"].index(status))
-                        new_start = st.number_input("Starts in (Days)", value=start_days if start_days else 0, min_value=0)
+                        new_start = col2.number_input("Starts in (Days)", value=start_days if start_days else 0, min_value=0)
                         
                         btn_col1, btn_col2 = st.columns(2)
-                        with btn_col1:
-                            if st.form_submit_button("💾 Update Status"):
-                                db.update_complaint(c_id, new_status, new_start)
-                                st.success(f"Complaint #{c_id} updated!")
-                                st.rerun()
-                        with btn_col2:
-                            if st.form_submit_button("🗑️ Delete Record"):
-                                db.delete_complaint(c_id)
-                                st.error(f"Complaint #{c_id} deleted!")
-                                st.rerun()
+                        if btn_col1.form_submit_button("💾 Save Changes"):
+                            db.update_complaint(c_id, new_status, new_start)
+                            st.success(f"Complaint #{c_id} updated!")
+                            st.rerun()
+                        if btn_col2.form_submit_button("🗑️ Delete"):
+                            db.delete_complaint(c_id)
+                            st.warning(f"Complaint #{c_id} deleted!")
+                            st.rerun()
+    
+    with tab_reports:
+        st.subheader("Administrative Reports")
+        all_comp = db.get_all_complaints()
+        if all_comp:
+            df = pd.DataFrame(all_comp, columns=["id", "name", "road", "count", "cost", "status", "days", "time", "details", "reporter_email", "authority_email"])
+            st.dataframe(df, use_container_width=True)
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download Full Master Log (CSV)", data=csv, file_name="master_complaints.csv")
+
+# --- MAIN RENDER LOGIC ---
+if st.session_state.admin_logged_in:
+    render_admin_view()
+elif st.session_state.show_login:
+    render_login_page()
+else:
+    render_citizen_view(audit)
 
 def update_ui_elements(audit):
     # Metrics
