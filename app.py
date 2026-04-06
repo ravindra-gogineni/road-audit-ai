@@ -36,19 +36,37 @@ class RoadAuditState:
         self.severity_counts = {"MINOR": 0, "MODERATE": 0, "CRITICAL": 0}
 
     def calculate_severity(self, box, frame_area):
+        """Dynamic pricing based on pothole size relative to the road."""
         x1, y1, x2, y2 = box
-        width, height = x2 - x1, y2 - y1
-        percent_area = ((width * height) / frame_area) * 100
+        width = x2 - x1
+        height = y2 - y1
+        area_pixels = width * height
         
-        # --- ORIGINAL DEMO CALIBRATION (REDUCED COSTS) ---
-        # Adjusted to keep total repair bills around 15k-25k for the demo video as requested.
-        base_cost = 200
-        if percent_area < 1.0: 
-            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
-        elif 1.0 <= percent_area < 5.0: 
-            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
-        else: 
-            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
+        # Calculate what % of the screen this pothole takes up
+        percent_area = (area_pixels / frame_area) * 100
+        
+        base_cost = 500  # Minimum labor charge
+        
+        # 1. SMALL POTHOLE (Patch work)
+        if percent_area < 2: 
+            severity = "MINOR"
+            color = (16, 185, 129) # Premium Green (RGB)
+            extra_cost = percent_area * 50
+            
+        # 2. MEDIUM POTHOLE (Resurfacing)
+        elif 2 <= percent_area < 8:
+            severity = "MODERATE"
+            color = (245, 158, 11) # Premium Orange (RGB)
+            extra_cost = percent_area * 150
+            
+        # 3. LARGE POTHOLE (Full reconstruction)
+        else:
+            severity = "CRITICAL"
+            color = (239, 68, 68) # Premium Red (RGB)
+            extra_cost = percent_area * 300
+            
+        total_cost = int(base_cost + extra_cost)
+        return severity, total_cost, color
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
