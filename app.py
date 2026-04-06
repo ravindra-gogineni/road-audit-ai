@@ -40,15 +40,15 @@ class RoadAuditState:
         width, height = x2 - x1, y2 - y1
         percent_area = ((width * height) / frame_area) * 100
         
-        # --- ENTERPRISE-GRADE REPAIR COST CALIBRATION ---
-        # Adjusted for professional realism (Minor: 2.5k+, Moderate: 7.5k+, Critical: 25k+)
-        base_cost = 2500
+        # --- ORIGINAL DEMO CALIBRATION (REDUCED COSTS) ---
+        # Adjusted to keep total repair bills around 15k-25k for the demo video as requested.
+        base_cost = 200
         if percent_area < 1.0: 
-            return "MINOR", int(base_cost + percent_area * 5000), (16, 185, 129) # Green
+            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
         elif 1.0 <= percent_area < 5.0: 
-            return "MODERATE", int(7500 + percent_area * 12000), (245, 158, 11) # Orange
+            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
         else: 
-            return "CRITICAL", int(25000 + percent_area * 45000), (239, 68, 68) # Red
+            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
