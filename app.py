@@ -72,9 +72,9 @@ class RoadAuditState:
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        # Reduced from 50 to 30 for better CPU precision in clusters
+        # Increased to 100px to aggressively prevent re-counting the same pothole
         for (old_cx, old_cy) in self.processed_centroids:
-            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 30:
+            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 100:
                 return True, cx, cy
         return False, cx, cy
 
@@ -868,9 +868,9 @@ else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_area = frame.shape[0] * frame.shape[1]
                 
-                # --- ACCURACY-OPTIMIZED (CPU-FRIENDLY) ---
-                # Conf: 0.25 captures more subtle potholes; ByteTrack is smoother on CPU.
-                results = model.track(frame_rgb, persist=True, tracker="bytetrack.yaml", conf=0.25, iou=0.45, verbose=False)
+                # --- STABILIZED SCANNING (BUDGET PROTECTION) ---
+                # Conf: 0.50 ignores noise; IOU: 0.75 merges overlapping boxes; radius: 100px
+                results = model.track(frame_rgb, persist=True, tracker="bytetrack.yaml", conf=0.50, iou=0.75, verbose=False)
                 
                 if results[0].boxes is not None and results[0].boxes.id is not None:
                     boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
