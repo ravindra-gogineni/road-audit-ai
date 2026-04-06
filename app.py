@@ -72,9 +72,9 @@ class RoadAuditState:
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        # Fine-tuned to 65px: Real-world balance for distinct hazards
+        # 50px: Optimal real-world balance — catches distinct potholes while blocking double-counts
         for (old_cx, old_cy) in self.processed_centroids:
-            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 65:
+            if math.sqrt((cx-old_cx)**2 + (cy-old_cy)**2) < 50:
                 return True, cx, cy
         return False, cx, cy
 
