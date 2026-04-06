@@ -34,6 +34,7 @@ class RoadAuditState:
         self.total_cost = 0
         self.pothole_count = 0
         self.severity_counts = {"MINOR": 0, "MODERATE": 0, "CRITICAL": 0}
+        self.activity_logs = [] # Store "New Defect ID" messages
 
     def calculate_severity(self, box, frame_area):
         """Dynamic pricing based on pothole size relative to the road."""
@@ -199,6 +200,23 @@ def apply_premium_style():
         .live-metric-label {{ font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; }}
         .live-metric-value {{ font-size: 2.2rem; font-weight: 800; color: #10b981; margin-top: 5px; }}
         .live-metric-value-red {{ font-size: 2.2rem; font-weight: 800; color: #ef4444; margin-top: 5px; }}
+        
+        /* Activity Log Console */
+        .activity-log-container {{
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            height: 250px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #10b981;
+            line-height: 1.6;
+        }}
+        .log-entry {{ border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 4px 0; }}
+        .log-id {{ color: #fbbf24; font-weight: bold; }}
+        .log-cost {{ color: #ef4444; font-weight: bold; }}
     </style>
     
     <div class="top-bar">
@@ -543,9 +561,16 @@ def render_citizen_view(audit):
 
     with tab_live:
         st.subheader("Inspection Feed")
-        global video_placeholder, metrics_placeholder, chart_placeholder, record_table
+        global video_placeholder, metrics_placeholder, chart_placeholder, record_table, activity_placeholder
         metrics_placeholder = st.empty()
-        video_placeholder = st.empty()
+        
+        col_feed, col_log = st.columns([2, 1])
+        with col_feed:
+            video_placeholder = st.empty()
+        with col_log:
+            st.markdown("##### 📜 Live Activity Feed")
+            activity_placeholder = st.empty()
+            
         chart_placeholder = st.empty()
         record_table = st.empty()
         
@@ -753,6 +778,11 @@ def update_ui_elements(audit):
     if audit.detections:
         df = pd.DataFrame(audit.detections)
         record_table.dataframe(df.tail(10), use_container_width=True)
+    
+    # Activity Log
+    if audit.activity_logs:
+        logs_html = "".join([f'<div class="log-entry">{log}</div>' for log in reversed(audit.activity_logs)])
+        activity_placeholder.markdown(f'<div class="activity-log-container">{logs_html}</div>', unsafe_allow_html=True)
 
 # --- MAIN RENDER LOGIC ---
 def main():
@@ -824,6 +854,9 @@ else:
             while cap.isOpened() and st.session_state.is_running:
                 ret, frame = cap.read()
                 if not ret:
+                    # Final log message to match user's gold standard
+                    audit.activity_logs.append(f'<span class="log-id">Audit Complete.</span> Total: <span class="log-cost">Rs. {audit.total_cost:,}</span>')
+                    update_ui_elements(audit) # Final UI update
                     st.success("Video processing complete! You can now send the report.")
                     st.session_state.is_running = False
                     break
@@ -860,6 +893,10 @@ else:
                                     "Cost (Rs)": int(cost),
                                     "Location": session_gps
                                 })
+                                
+                                # Add to Activity Feed (matches User's friend's log style)
+                                log_msg = f'New Defect <span class="log-id">ID:{track_id}</span> | GPS: {session_gps} | Cost: <span class="log-cost">Rs. {cost}</span>'
+                                audit.activity_logs.append(log_msg)
                         
                         # Draw boxes on the RGB frame for display
                         cv2.rectangle(frame_rgb, (box[0], box[1]), (box[2], box[3]), color, 3)
