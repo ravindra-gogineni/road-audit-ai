@@ -36,9 +36,10 @@ The **Andhra Pradesh Road Safety AI** is a world-class, full-stack SaaS platform
 This project is a result of collaborative innovation for the people of Andhra Pradesh:
 
 - **Ravindra Gogineni** – *Lead Developer & Architect* | [LinkedIn](https://www.linkedin.com/in/ravindra-gogineni-034501212) | [GitHub](https://github.com/ravindra-gogineni)
-- **Revathi Nalluri** – *Team Member & Tactical Support*
+- **Revathi Nalluri** – *Developer & Tactical Support*   [LinkedIn](https://www.linkedin.com/in/revathi-nalluri-539755290) |
 
 ---
+
 
 ## 💻 Tech Stack
 - **AI**: YOLOv8, OpenCV, NumPy.
