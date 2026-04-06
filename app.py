@@ -257,7 +257,7 @@ BREVO_API_KEY = st.secrets["BREVO_API_KEY"] if "BREVO_API_KEY" in st.secrets els
 SENDER_NAME = "Citizen Road Reporter"
 SENDER_EMAIL = "revathinalluri999@gmail.com"
 
-# --- ANDHRA PRADESH DISTRICTS & TARGET EMAILS ---
+# --- ANDHRA PRADESH DISTRICTS, TARGET EMAILS & ACCURATE GPS COORDINATES ---
 AP_DISTRICTS = {
     "Alluri Sitharama Raju": "pmu.asr@ap.gov.in",
     "Anakapalli": "ce.anakapalli@ap.gov.in",
@@ -285,6 +285,36 @@ AP_DISTRICTS = {
     "Vizianagaram": "ce.vizianagaram@ap.gov.in",
     "West Godavari": "ce.wgodavari@ap.gov.in",
     "YSR Kadapa": "ce.kadapa@ap.gov.in"
+}
+
+# Accurate GPS coordinates for each AP district headquarters
+AP_DISTRICT_COORDS = {
+    "Alluri Sitharama Raju": (18.1066, 82.6020),
+    "Anakapalli":            (17.6909, 83.0046),
+    "Ananthapuramu":         (14.6819, 77.6006),
+    "Annamayya":             (13.7747, 79.0693),
+    "Bapatla":               (15.9033, 80.4671),
+    "Chittoor":              (13.2172, 79.1003),
+    "Dr. B.R. Ambedkar Konaseema": (16.9174, 81.7337),
+    "East Godavari":         (17.3850, 82.0370),
+    "Eluru":                 (16.7107, 81.0952),
+    "Guntur":                (16.3067, 80.4365),
+    "Kakinada":              (16.9891, 82.2475),
+    "Krishna":               (16.5062, 80.6480),
+    "Kurnool":               (15.8281, 78.0373),
+    "Nandyal":               (15.4786, 78.4836),
+    "NTR":                   (16.5061, 80.6480),
+    "Palnadu":               (16.2473, 79.6508),
+    "Parvathipuram Manyam":  (18.7834, 83.4286),
+    "Prakasam (Ongole)":     (15.5057, 80.0499),
+    "Sri Potti Sriramulu Nellore": (14.4426, 79.9865),
+    "Sri Sathya Sai":        (13.9714, 77.5670),
+    "Srikakulam":            (18.2969, 83.8979),
+    "Tirupati":              (13.6288, 79.4192),
+    "Visakhapatnam":         (17.6868, 83.2185),
+    "Vizianagaram":          (18.1066, 83.3956),
+    "West Godavari":         (16.9174, 81.3340),
+    "YSR Kadapa":            (14.4674, 78.8241)
 }
 
 # ==========================================
@@ -393,13 +423,32 @@ else:
 # --- LIVE GPS CAPTURE ---
 with st.sidebar:
     st.subheader("📍 Precise Location")
+    
+    # District-based GPS fallback (accurate for all 26 AP districts)
+    selected_district = st.selectbox(
+        "📌 Select Your District",
+        options=list(AP_DISTRICT_COORDS.keys()),
+        index=list(AP_DISTRICT_COORDS.keys()).index("Prakasam (Ongole)"),
+        help="Select your district for accurate map pinning. Browser GPS will override this if allowed."
+    )
+    dist_lat, dist_lng = AP_DISTRICT_COORDS[selected_district]
+    
+    # Always set district coords as the base
+    if st.session_state.map_lat == 15.50 and st.session_state.map_lng == 80.05:
+        st.session_state.map_lat = dist_lat
+        st.session_state.map_lng = dist_lng
+    
+    # Browser GPS overrides district (more precise)
     location = streamlit_geolocation()
     if location and location['latitude']:
         st.session_state.map_lat = location['latitude']
         st.session_state.map_lng = location['longitude']
-        st.success(f"GPS Connected: {st.session_state.map_lat:.4f}, {st.session_state.map_lng:.4f}")
+        st.success(f"✅ Browser GPS: {st.session_state.map_lat:.4f}, {st.session_state.map_lng:.4f}")
     else:
-        st.warning("Please click 'Allow' or check GPS if inaccurate.")
+        # Use district coords as reliable fallback
+        st.session_state.map_lat = dist_lat
+        st.session_state.map_lng = dist_lng
+        st.info(f"📌 Using {selected_district} HQ: {dist_lat:.4f}, {dist_lng:.4f}")
 
 # --- MAIN NAVIGATION ---
 st.sidebar.divider()
