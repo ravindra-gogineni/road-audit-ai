@@ -40,15 +40,15 @@ class RoadAuditState:
         width, height = x2 - x1, y2 - y1
         percent_area = ((width * height) / frame_area) * 100
         
-        # --- FINAL "PERFECT DEMO" CALIBRATION (REDUCED COSTS) ---
-        # Adjusted to keep total repair bills around 15k-25k for the demo video.
-        base_cost = 200
+        # --- ENTERPRISE-GRADE REPAIR COST CALIBRATION ---
+        # Adjusted for professional realism (Minor: 2.5k+, Moderate: 7.5k+, Critical: 25k+)
+        base_cost = 2500
         if percent_area < 1.0: 
-            return "MINOR", int(base_cost + percent_area * 100), (16, 185, 129) # Green
+            return "MINOR", int(base_cost + percent_area * 5000), (16, 185, 129) # Green
         elif 1.0 <= percent_area < 5.0: 
-            return "MODERATE", int(base_cost + percent_area * 300), (245, 158, 11) # Orange
+            return "MODERATE", int(7500 + percent_area * 12000), (245, 158, 11) # Orange
         else: 
-            return "CRITICAL", int(base_cost + percent_area * 1000), (239, 68, 68) # Red
+            return "CRITICAL", int(25000 + percent_area * 45000), (239, 68, 68) # Red
 
     def is_duplicate(self, box):
         x1, y1, x2, y2 = box
@@ -166,6 +166,21 @@ def apply_premium_style():
         /* Fix Streamlit Overrides */
         [data-testid="stMetricValue"] {{ display: none; }}
         [data-testid="stMetricLabel"] {{ display: none; }}
+        
+        /* New Live Metrics Styling */
+        .live-metrics-row {{
+            display: flex; gap: 20px; margin-bottom: 25px;
+            justify-content: center; align-items: center;
+        }}
+        .live-metric-card {{
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 15px 25px; min-width: 220px; text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }}
+        .live-metric-label {{ font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; }}
+        .live-metric-value {{ font-size: 2.2rem; font-weight: 800; color: #10b981; margin-top: 5px; }}
+        .live-metric-value-red {{ font-size: 2.2rem; font-weight: 800; color: #ef4444; margin-top: 5px; }}
     </style>
     
     <div class="top-bar">
@@ -692,9 +707,17 @@ def render_admin_view():
             st.warning("No data available for reporting yet.")
 
 def update_ui_elements(audit):
-    # Metrics
+    # Metrics - Side-by-side Layout
     metrics_placeholder.markdown(f"""
-            <div class="metric-cost">₹ {audit.total_cost:,}</div>
+        <div class="live-metrics-row">
+            <div class="live-metric-card">
+                <div class="live-metric-label">📋 Total Potholes</div>
+                <div class="live-metric-value">{audit.pothole_count}</div>
+            </div>
+            <div class="live-metric-card">
+                <div class="live-metric-label">💰 Estimated Total Cost</div>
+                <div class="live-metric-value-red">₹ {audit.total_cost:,}</div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
