@@ -374,12 +374,6 @@ if not st.session_state.admin_logged_in:
         video_path = 0
 
     st.sidebar.divider()
-    st.sidebar.subheader("🛠️ AI Calibration")
-    conf_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 0.9, 0.25, 0.05, help="Lower = Catch more potholes (but maybe more noise). Higher = More certain discoveries.")
-    iou_threshold = st.sidebar.slider("IOU Threshold", 0.1, 0.9, 0.45, 0.05, help="Controls how much overlapping detections are merged.")
-    tracker_type = st.sidebar.selectbox("Tracking Algorithm", ["bytetrack.yaml", "botsort.yaml"], index=0)
-    
-    st.sidebar.divider()
     start_btn = st.sidebar.button("🚀 Start Scan", use_container_width=True, type="primary")
     stop_btn = st.sidebar.button("🛑 Stop Scan", use_container_width=True)
 
@@ -874,9 +868,9 @@ else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_area = frame.shape[0] * frame.shape[1]
                 
-                # --- ACCURACY-OPTIMIZED (CPU) ---
-                # Using dynamic sliders from the sidebar for real-time calibration
-                results = model.track(frame_rgb, persist=True, tracker=tracker_type, conf=conf_threshold, iou=iou_threshold, verbose=False)
+                # --- ACCURACY-OPTIMIZED (CPU-FRIENDLY) ---
+                # Conf: 0.25 captures more subtle potholes; ByteTrack is smoother on CPU.
+                results = model.track(frame_rgb, persist=True, tracker="bytetrack.yaml", conf=0.25, iou=0.45, verbose=False)
                 
                 if results[0].boxes is not None and results[0].boxes.id is not None:
                     boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
